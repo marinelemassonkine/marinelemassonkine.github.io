@@ -1068,7 +1068,7 @@ document.addEventListener('submit', async (e) => {
         options:{ data:{ nom:d.nom.trim(), prenom:d.prenom.trim(), telephone:d.telephone.trim() } }
       });
       if (error) throw error;
-      if (!data.session){ S.authMode='login'; flash('info','Compte créé. Vérifie ta boîte mail pour confirmer, puis connecte-toi.'); return; }
+      if (!data.session){ const r2 = await sb.auth.signInWithPassword({ email:d.email.trim(), password:d.mdp }); if (r2.error){ S.authMode='login'; flash('ok','Compte créé ! Tu peux maintenant te connecter.'); return; } }
       return;
     }
     const { error } = await sb.auth.signInWithPassword({ email:d.email.trim(), password:d.mdp });
