@@ -611,7 +611,7 @@ function vueMesCours(){
     ${alerteConfirmation()}
     ${alerteCredits()}
     <div class="section-title">Mes prochains cours</div>
-    ${mes.length ? `<div class="stack">${mes.map(c=>carteCreneau(c,false)).join('')}</div>`
+    ${mes.length ? listeParJour(mes, false)
       : `<div class="empty">${ICO.empty}<div>Tu n’es inscrite à aucun cours à venir.</div>
          <button class="btn soft sm" style="margin-top:14px" data-act="vue" data-vue="cours">Voir les cours</button></div>`}
     <div class="section-title">Historique</div>
