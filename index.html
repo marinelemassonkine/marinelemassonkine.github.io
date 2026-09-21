@@ -280,7 +280,7 @@ const sb = createClient(SUPABASE_URL, SUPABASE_KEY);
 const aujourdhui = new Date();
 const S = {
   session:null, profil:null, params:null,
-  vue:'cours', creneaux:[], adherentes:[], mouvements:[], historique:[], annonces:[], videos:[], notifs:[],
+  vue:'cours', creneaux:[], adherentes:[], mouvements:[], historique:[], annonces:[], videos:[], notifs:[], lots:[],
   planningVue:'calendrier',
   mois:new Date(aujourdhui.getFullYear(), aujourdhui.getMonth(), 1),
   jourSel:null,
@@ -308,6 +308,8 @@ const ERREURS = {
   creneau_passe:"Ce cours est déjà passé.",
   deja_inscrite:"Tu es déjà inscrite à ce cours.",
   credits_insuffisants:"Il ne te reste plus aucun crédit séance. Contacte Marine pour en rajouter.",
+  credits_expires_avant_cours:"Tes séances auront expiré à la date de ce cours. Choisis un cours plus tôt ou contacte Marine.",
+  date_passee:"La date limite doit être aujourd’hui ou plus tard.",
   credits_insuffisants_adherente:"Cette adhérente n’a plus de crédit séance. Ajoute-lui des séances d’abord (onglet Adhérentes).",
   reservation_introuvable:"Réservation introuvable.",
   non_autorisee:"Action non autorisée.",
@@ -339,6 +341,19 @@ async function chargerCreneaux(){
   if (error) { flash('err', messageErreur(error)); return; }
   S.creneaux = data || [];
 }
+async function chargerLots(){
+  const { data } = await sb.from('lots_credits').select('*').gt('restant', 0).order('expire_le', { ascending:true, nullsFirst:false });
+  S.lots = data || [];
+}
+const lotsDe = id => S.lots.filter(l => l.adherente_id === id);
+const fExp = k => fDate(dePuisCle(k));
+function detailLots(id, pourCliente){
+  const ls = lotsDe(id);
+  if (!ls.length) return '';
+  return `<div class="stack" style="gap:4px; width:100%; text-align:left">${ls.map(l => `
+    <div class="row-between" style="font-size:14px"><span>${seances(l.restant)}</span>
+      <span class="${l.expire_le ? '' : 'faint'}">${l.expire_le ? `à utiliser avant le <b>${esc(fExp(l.expire_le))}</b>` : 'sans date limite'}</span></div>`).join('')}</div>`;
+}
 async function chargerNotifs(){
   const { data } = await sb.from('notifications').select('*').order('cree_le', { ascending:false }).limit(40);
   S.notifs = data || [];
@@ -364,6 +379,7 @@ async function chargerHistorique(){
 async function chargerAdherentes(){
   const { data } = await sb.from('adherentes').select('*').order('statut').order('nom');
   S.adherentes = data || [];
+  await chargerLots();
 }
 const estAdmin = () => S.profil && S.profil.role === 'admin';
 
@@ -601,6 +617,11 @@ function alerteConfirmation(){
 }
 function alerteCredits(){
   const n = S.profil.credits;
+  const bientot = lotsDe(S.profil.id).filter(l => l.expire_le && (dePuisCle(l.expire_le) - new Date()) < 14*864e5);
+  const exp = bientot.map(l => `<div class="notice warn">${seances(l.restant)} à utiliser avant le ${esc(fExp(l.expire_le))}, sinon ${l.restant>1?'elles seront perdues':'elle sera perdue'}.</div>`).join('');
+  return exp + alerteCredits0(n);
+}
+function alerteCredits0(n){
   if (n <= 0) return `<div class="notice err">Il ne te reste plus aucun crédit séance. Pense à contacter Marine pour en rajouter avant de réserver.</div>`;
   if (n <= 2) return `<div class="notice warn">Attention, il te reste ${n} crédit${n>1?'s':''} séance. Pense à contacter Marine pour en rajouter.</div>`;
   return '';
@@ -632,6 +653,7 @@ function vueCompte(){
     <div class="card stack" style="align-items:center; text-align:center; padding-block:22px">
       <div style="font-family:Fraunces,serif; font-size:46px; font-weight:600; line-height:1; color:var(--accent)">${p.credits}</div>
       <div class="muted" style="margin-top:-4px">séance${p.credits>1?'s':''} restante${p.credits>1?'s':''} sur ta carte</div>
+      ${detailLots(p.id, true)}
       ${alerteCredits()}
       <div class="faint">Seule Marine ajoute des séances, selon ce que tu as réglé. Une séance est décomptée dès que tu réserves, et elle t’est rendue si tu annules plus de ${S.params.delai_annulation_h} h avant le cours.</div>
     </div>
@@ -1074,7 +1096,10 @@ function detailAdherente(a){
     <div class="card stack" style="align-items:center; text-align:center; margin-bottom:16px">
       <div style="font-family:Fraunces,serif; font-size:40px; font-weight:600; line-height:1; color:var(--accent)">${a.credits}</div>
       <div class="muted" style="margin-top:-4px">séance${a.credits>1?'s':''} restante${a.credits>1?'s':''}</div>
+      ${detailLots(a.id)}
       <div class="faint">Ajoute les séances qu’elle a réglées au cabinet.</div>
+      <div class="field" style="width:100%; margin:0; text-align:left"><label for="ad-exp">À utiliser avant le (facultatif)</label>
+        <input id="ad-exp" type="date" min="${dayKey(new Date())}"></div>
       <div class="row" style="flex-wrap:wrap; justify-content:center">
         ${[1,5,10].map(n=>`<button class="btn sm" data-act="credits" data-id="${a.id}" data-n="${n}">+${n}</button>`).join('')}
         <button class="btn soft sm" data-act="credits" data-id="${a.id}" data-n="-1">−1</button>
@@ -1105,7 +1130,7 @@ document.addEventListener('click', async (e) => {
 
   switch(act){
     case 'mode': S.authMode = el.dataset.mode; S.notice=null; render(); break;
-    case 'vue': S.vue = el.dataset.vue; S.notice=null; render(); if(S.vue==='compte') chargerMouvements().then(render); if(S.vue==='mes') chargerHistorique().then(render); if(S.vue==='videos') chargerVideos().then(render); break;
+    case 'vue': S.vue = el.dataset.vue; S.notice=null; render(); if(S.vue==='compte') Promise.all([chargerMouvements(), chargerLots()]).then(render); if(S.vue==='mes') chargerHistorique().then(render); if(S.vue==='videos') chargerVideos().then(render); break;
     case 'fermer': case 'fermer-bg': S.sheet = null; render(); break;
     case 'deconnexion': await sb.auth.signOut(); S.session=null; S.profil=null; render(); break;
     case 'rafraichir': await agir(async()=>{ await chargerProfil(); await chargerCreneaux(); await chargerAnnonces(); }); break;
@@ -1133,7 +1158,7 @@ document.addEventListener('click', async (e) => {
     case 'reserver': if (S.profil.credits < 1) { flash('err','Il ne te reste plus aucun crédit séance. Contacte Marine pour en rajouter.'); break; }
     await agir(async()=>{
       const r = await rpc('reserver', { p_creneau: el.dataset.id });
-      await Promise.all([chargerProfil(), chargerCreneaux()]);
+      await Promise.all([chargerProfil(), chargerCreneaux(), chargerLots()]);
       flash('ok', r.statut === 'confirmee'
         ? `C’est réservé ! 1 crédit séance décompté, il t’en reste ${S.profil.credits}.`
         : 'Le cours est complet : tu es en liste d’attente. Si une place se libère, tu seras inscrite automatiquement et prévenue. Aucune séance décomptée pour l’instant.');
@@ -1201,7 +1226,8 @@ document.addEventListener('click', async (e) => {
     }
 
     case 'credits': await agir(async()=>{
-      await rpc('admin_ajouter_credits', { p_adherente: el.dataset.id, p_nb: Number(el.dataset.n), p_motif: '' });
+      const n = Number(el.dataset.n); const exp = n > 0 ? ($('#ad-exp')?.value || null) : null;
+      await rpc('admin_ajouter_credits', { p_adherente: el.dataset.id, p_nb: n, p_motif: '', p_expire: exp });
       await Promise.all([chargerAdherentes(), chargerCreneaux()]);
       flash('ok','Séances mises à jour.');
     }); break;
@@ -1210,7 +1236,7 @@ document.addEventListener('click', async (e) => {
       const n = Number($('#ad-n')?.value || 0);
       if (!n) { flash('err','Indique un nombre.'); break; }
       await agir(async()=>{
-        await rpc('admin_ajouter_credits', { p_adherente: el.dataset.id, p_nb: n, p_motif: '' });
+        await rpc('admin_ajouter_credits', { p_adherente: el.dataset.id, p_nb: n, p_motif: '', p_expire: n > 0 ? ($('#ad-exp')?.value || null) : null });
         await Promise.all([chargerAdherentes(), chargerCreneaux()]);
         flash('ok','Séances mises à jour.');
       }); break;
@@ -1400,7 +1426,7 @@ async function demarrer(session){
   S.vue = estAdmin() ? 'planning' : 'cours';
   if (S.profil.statut === 'active' || estAdmin()){
     await Promise.all([chargerCreneaux(), chargerAnnonces()]);
-    if (estAdmin()) await chargerAdherentes(); else await chargerHistorique();
+    if (estAdmin()) await chargerAdherentes(); else await Promise.all([chargerHistorique(), chargerLots()]);
     if (estAdmin() || S.profil.acces_videos) await chargerVideos();
   }
   await Promise.all([chargerNotifs(), etatPush()]);
