@@ -212,6 +212,8 @@ textarea{resize:vertical; min-height:64px}
 .notice.err{background:var(--danger-soft); color:var(--danger)}
 .notice.ok{background:var(--ok-soft); color:var(--ok)}
 .notice.info{background:var(--accent-soft); color:var(--accent)}
+.video-frame{display:block; width:100%; aspect-ratio:16/9; border:0; border-radius:var(--radius-sm); background:#000; overflow:hidden}
+.video-frame iframe{width:100%; height:100%; border:0; display:block}
 .notice.warn{background:var(--warn-soft); color:var(--warn); font-weight:600}
 
 /* auth */
@@ -269,7 +271,7 @@ const sb = createClient(SUPABASE_URL, SUPABASE_KEY);
 const aujourdhui = new Date();
 const S = {
   session:null, profil:null, params:null,
-  vue:'cours', creneaux:[], adherentes:[], mouvements:[], historique:[], annonces:[],
+  vue:'cours', creneaux:[], adherentes:[], mouvements:[], historique:[], annonces:[], videos:[],
   planningVue:'calendrier',
   mois:new Date(aujourdhui.getFullYear(), aujourdhui.getMonth(), 1),
   jourSel:null,
@@ -326,6 +328,10 @@ async function chargerCreneaux(){
   const { data, error } = await sb.rpc('liste_creneaux', { p_jours: 365 });
   if (error) { flash('err', messageErreur(error)); return; }
   S.creneaux = data || [];
+}
+async function chargerVideos(){
+  const { data } = await sb.from('videos').select('*').order('cree_le', { ascending:false });
+  S.videos = (data || []).filter(v => new Date(v.expire_le) > new Date());
 }
 async function chargerAnnonces(){
   const { data } = await sb.from('annonces').select('*').order('cree_le', { ascending:false });
@@ -407,8 +413,8 @@ function coque(){
 
 function barreOnglets(admin){
   const items = admin
-    ? [['planning','Planning',ICO.cal],['adherentes','Adhérentes',ICO.users],['reglages','Réglages',ICO.gear]]
-    : [['cours','Les cours',ICO.cal],['mes','Mes cours',ICO.check],['compte','Mon compte',ICO.user]];
+    ? [['planning','Planning',ICO.cal],['adherentes','Adhérentes',ICO.users],['videos','Vidéos',ICO.play],['reglages','Réglages',ICO.gear]]
+    : [['cours','Les cours',ICO.cal],['mes','Mes cours',ICO.check],...(S.profil.acces_videos?[['videos','Vidéos',ICO.play]]:[]),['compte','Mon compte',ICO.user]];
   if (S.profil.statut !== 'active' && !admin) return '';
   return `<nav class="tabs"><div class="tabs-in">${items.map(([k,l,i])=>`
     <button class="tab" data-act="vue" data-vue="${k}" ${S.vue===k?'aria-current="page"':''}>${i}<span>${l}</span></button>`).join('')}
@@ -421,6 +427,7 @@ const ICO = {
   user:'<svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-6.5 8-6.5s8 2.5 8 6.5"/></svg>',
   users:'<svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.4"/><path d="M2 20c0-3.6 3.2-5.6 7-5.6s7 2 7 5.6"/><path d="M17 6.5a3.4 3.4 0 0 1 0 6.6M18.5 20c0-2.4-.8-4-2-5"/></svg>',
   gear:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.2"/><path d="M12 2.8v2.4M12 18.8v2.4M4.3 7.4l2 1.2M17.7 15.4l2 1.2M4.3 16.6l2-1.2M17.7 8.6l2-1.2"/></svg>',
+  play:'<svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M10 9.5v5l4.5-2.5Z"/></svg>',
   leaf:'<svg viewBox="0 0 24 24"><path d="M4 20c0-8 5-15 16-16 1 11-5 16-12 16-2 0-4-.6-4-.6Z"/><path d="M9 20c1-5 4-9 8-11"/></svg>',
   empty:'<svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4M9 16h6"/></svg>'
 };
@@ -486,6 +493,7 @@ const vueSuspendu = () => ecranSimple(
 /* ---------------------------------------------------------- espace adhérente */
 function vueAdherente(){
   if (S.vue === 'mes')    return vueMesCours();
+  if (S.vue === 'videos' && S.profil.acces_videos) return vueVideos();
   if (S.vue === 'compte') return vueCompte();
   return vueCoursDispo();
 }
@@ -623,6 +631,7 @@ function vueCompte(){
 function vueAdmin(){
   if (S.vue === 'adherentes') return vueAdminAdherentes();
   if (S.vue === 'reglages')   return vueAdminReglages();
+  if (S.vue === 'videos')     return vueAdminVideos();
   return vueAdminPlanning();
 }
 
@@ -738,10 +747,80 @@ function ligneAdherente(a){
     <div class="avatar">${esc(initiales(a))}</div>
     <div class="grow">
       <div class="name">${esc(a.prenom)} ${esc(a.nom)}</div>
-      <div class="faint">${esc(a.telephone||'—')}${a.role==='admin'?' · cabinet':''}</div>
+      <div class="faint">${esc(a.telephone||'—')}${a.role==='admin'?' · cabinet':''}${a.acces_videos?' · option vidéo':''}</div>
     </div>
     ${actions}
   </div>`;
+}
+
+/* ---------------------------------------------------------- vidéos */
+function prochainDimanche20h(){
+  const d = new Date(); const j = (7 - d.getDay()) % 7 || 7;
+  d.setDate(d.getDate() + j); d.setHours(20, 0, 0, 0); return d;
+}
+const valeurLocale = d => `${d.toLocaleDateString('fr-CA')}T${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+const fJusqua = d => `${fDay(d)} à ${fTime(d)}`;
+
+function lecteurVideo(lien){
+  const l = String(lien||'').trim();
+  let m = l.match(/(?:youtu\.be\/|[?&]v=|shorts\/|live\/|embed\/)([\w-]{11})/);
+  if (/youtu/.test(l) && m) return `<div class="video-frame"><iframe src="https://www.youtube-nocookie.com/embed/${m[1]}?rel=0" allow="accelerometer; encrypted-media; gyroscope; picture-in-picture; fullscreen" allowfullscreen title="Vidéo du cours"></iframe></div>`;
+  m = l.match(/drive\.google\.com\/(?:file\/d\/|open\?id=)([\w-]+)/);
+  if (m) return `<div class="video-frame"><iframe src="https://drive.google.com/file/d/${m[1]}/preview" allow="autoplay; fullscreen" allowfullscreen title="Vidéo du cours"></iframe></div>`;
+  if (/\.(mp4|mov|webm|m4v)(\?|$)/i.test(l)) return `<video class="video-frame" src="${esc(l)}" controls playsinline preload="metadata"></video>`;
+  return `<a class="btn full" href="${esc(l)}" target="_blank" rel="noopener">Ouvrir la vidéo</a>`;
+}
+
+function vueVideos(){
+  return `
+    <div class="section-title">Vidéos des cours</div>
+    <div class="faint" style="margin:-4px 0 12px">Tu as manqué un cours ? Suis-le en vidéo. Chaque vidéo s’efface automatiquement à la date indiquée.</div>
+    ${S.videos.length ? `<div class="stack">${S.videos.map(v=>`
+      <div class="card stack">
+        <div><div style="font-weight:700">${esc(v.titre)}</div>
+          <div class="faint">Disponible jusqu’au ${esc(fJusqua(new Date(v.expire_le)))}</div></div>
+        ${v.note ? `<div style="font-size:14px; line-height:1.45">${esc(v.note)}</div>` : ''}
+        ${lecteurVideo(v.lien)}
+      </div>`).join('')}</div>`
+      : `<div class="empty">${ICO.play}<div>Aucune vidéo disponible pour le moment.</div></div>`}`;
+}
+
+function vueAdminVideos(){
+  const membres = S.adherentes.filter(a => a.role !== 'admin' && a.statut === 'active');
+  const avec = membres.filter(a => a.acces_videos).length;
+  return `
+    <div class="section-title">Vidéos en ligne</div>
+    <div class="card">${S.videos.length ? S.videos.map(v=>`
+      <div class="person">
+        <div class="avatar" style="font-size:13px">▶</div>
+        <div class="grow"><div class="name">${esc(v.titre)}</div>
+          <div class="faint">S’efface le ${esc(fJusqua(new Date(v.expire_le)))}</div></div>
+        <button class="btn dangerish xs" data-act="suppr-video" data-id="${v.id}">Retirer</button>
+      </div>`).join('') : '<div class="faint">Aucune vidéo en ligne.</div>'}</div>
+
+    <form id="fvideo" class="card" style="margin-top:10px">
+      <div class="field"><label for="v-titre">Titre</label><input id="v-titre" name="titre" value="Cours du lundi soir" required></div>
+      <div class="field"><label for="v-lien">Lien de la vidéo</label>
+        <input id="v-lien" name="lien" type="url" inputmode="url" placeholder="https://youtu.be/…" required></div>
+      <div class="field"><label for="v-fin">S’efface automatiquement le</label>
+        <input id="v-fin" name="expire" type="datetime-local" value="${valeurLocale(prochainDimanche20h())}" required></div>
+      <div class="field"><label for="v-note">Petit mot (facultatif)</label>
+        <textarea id="v-note" name="note" placeholder="Ex. : pensez à prendre un tapis et une petite balle"></textarea></div>
+      <button class="btn full" type="submit" ${S.busy?'disabled':''}>Mettre la vidéo en ligne</button>
+      <div class="faint" style="margin-top:10px">Mets ta vidéo sur YouTube en « Non répertoriée » (ou sur Google Drive en « Tous les utilisateurs disposant du lien »), puis colle le lien ici. Seules les adhérentes avec l’option vidéo la verront, jusqu’à la date choisie.</div>
+    </form>
+
+    <div class="section-title">Option vidéo · ${avec} adhérente${avec>1?'s':''}</div>
+    <div class="faint" style="margin:-4px 0 10px">Ouvre ou ferme l’accès à la page Vidéos pour chaque adhérente.</div>
+    <div class="card">${membres.length ? membres.map(a=>`
+      <div class="person">
+        <div class="avatar">${esc(initiales(a))}</div>
+        <div class="grow"><div class="name">${esc(a.prenom)} ${esc(a.nom)}</div>
+          <div class="faint">${a.acces_videos ? 'Accès ouvert' : 'Pas d’accès'}</div></div>
+        ${a.acces_videos
+          ? `<button class="btn soft xs" data-act="acces-video" data-id="${a.id}" data-val="0">Fermer l’accès</button>`
+          : `<button class="btn xs" data-act="acces-video" data-id="${a.id}" data-val="1">Ouvrir l’accès</button>`}
+      </div>`).join('') : '<div class="faint">Aucune adhérente acceptée pour l’instant.</div>'}</div>`;
 }
 
 function vueAdminReglages(){
@@ -924,7 +1003,7 @@ document.addEventListener('click', async (e) => {
 
   switch(act){
     case 'mode': S.authMode = el.dataset.mode; S.notice=null; render(); break;
-    case 'vue': S.vue = el.dataset.vue; S.notice=null; render(); if(S.vue==='compte') chargerMouvements().then(render); if(S.vue==='mes') chargerHistorique().then(render); break;
+    case 'vue': S.vue = el.dataset.vue; S.notice=null; render(); if(S.vue==='compte') chargerMouvements().then(render); if(S.vue==='mes') chargerHistorique().then(render); if(S.vue==='videos') chargerVideos().then(render); break;
     case 'fermer': case 'fermer-bg': S.sheet = null; render(); break;
     case 'deconnexion': await sb.auth.signOut(); S.session=null; S.profil=null; render(); break;
     case 'rafraichir': await agir(async()=>{ await chargerProfil(); await chargerCreneaux(); await chargerAnnonces(); }); break;
@@ -978,6 +1057,22 @@ document.addEventListener('click', async (e) => {
       await chargerAdherentes(); if (S.sheet) S.sheet = null;
       flash('ok', el.dataset.val === 'active' ? 'Inscription acceptée. Pense à lui attribuer ses séances.' : 'Compte mis à jour.');
     }); break;
+
+    case 'acces-video': await agir(async()=>{
+      const ouvrir = el.dataset.val === '1';
+      const { error } = await sb.from('adherentes').update({acces_videos: ouvrir}).eq('id', el.dataset.id);
+      if (error) throw error;
+      await chargerAdherentes(); flash('ok', ouvrir ? 'Accès aux vidéos ouvert.' : 'Accès aux vidéos fermé.');
+    }); break;
+
+    case 'suppr-video': {
+      if (!confirm('Retirer cette vidéo maintenant ?')) break;
+      await agir(async()=>{
+        const { error } = await sb.from('videos').delete().eq('id', el.dataset.id);
+        if (error) throw error;
+        await chargerVideos(); flash('ok','Vidéo retirée.');
+      }); break;
+    }
 
     case 'refuser': {
       if (!confirm('Refuser cette demande d’inscription ? La personne ne pourra pas réserver.')) break;
@@ -1103,6 +1198,18 @@ document.addEventListener('submit', async (e) => {
     await chargerProfil(); flash('ok','Réglages enregistrés.');
   });
 
+  if (f.id === 'fvideo') return agir(async()=>{
+    const lien = d.lien.trim();
+    if (!/^https?:\/\//i.test(lien)) throw new Error('Colle un lien qui commence par https://');
+    const fin = new Date(d.expire);
+    if (!(fin > new Date())) throw new Error('La date d’effacement doit être dans le futur.');
+    const { error } = await sb.from('videos').insert({
+      titre: d.titre.trim() || 'Cours du lundi soir', lien, note: (d.note||'').trim(), expire_le: fin.toISOString()
+    });
+    if (error) throw error;
+    await chargerVideos(); flash('ok', `Vidéo en ligne jusqu’au ${fJusqua(fin)}.`);
+  });
+
   if (f.id === 'fannonce') return agir(async()=>{
     const texte = d.texte.trim();
     if (!texte) throw new Error('Écris le message de l’annonce.');
@@ -1141,6 +1248,7 @@ async function demarrer(session){
   if (S.profil.statut === 'active' || estAdmin()){
     await Promise.all([chargerCreneaux(), chargerAnnonces()]);
     if (estAdmin()) await chargerAdherentes(); else await chargerHistorique();
+    if (estAdmin() || S.profil.acces_videos) await chargerVideos();
   }
   render();
 }
