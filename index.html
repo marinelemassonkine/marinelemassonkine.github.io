@@ -212,6 +212,7 @@ textarea{resize:vertical; min-height:64px}
 .notice.err{background:var(--danger-soft); color:var(--danger)}
 .notice.ok{background:var(--ok-soft); color:var(--ok)}
 .notice.info{background:var(--accent-soft); color:var(--accent)}
+.notice.warn{background:var(--warn-soft); color:var(--warn); font-weight:600}
 
 /* auth */
 .auth{max-width:420px; margin:0 auto; padding-block:36px 40px}
@@ -295,7 +296,7 @@ const ERREURS = {
   creneau_annule:"Ce cours a été annulé.",
   creneau_passe:"Ce cours est déjà passé.",
   deja_inscrite:"Tu es déjà inscrite à ce cours.",
-  credits_insuffisants:"Il ne te reste aucune séance. Contacte le cabinet pour en ajouter.",
+  credits_insuffisants:"Il ne te reste plus aucun crédit séance. Contacte Marine pour en rajouter.",
   reservation_introuvable:"Réservation introuvable.",
   non_autorisee:"Action non autorisée.",
   adherente_introuvable:"Adhérente introuvable.",
@@ -558,13 +559,20 @@ function vueCoursDispo(){
   const futurs = S.creneaux.filter(c => new Date(c.debut) > new Date());
   return `
     ${bandeauAnnonces()}
-    ${S.profil.credits === 0 ? `<div class="notice err">Il ne te reste aucune séance. Contacte le cabinet pour recharger ta carte avant de réserver.</div>` : ''}
+    ${alerteCredits()}
     ${listeParJour(futurs, false)}`;
+}
+function alerteCredits(){
+  const n = S.profil.credits;
+  if (n <= 0) return `<div class="notice err">Il ne te reste plus aucun crédit séance. Pense à contacter Marine pour en rajouter avant de réserver.</div>`;
+  if (n <= 2) return `<div class="notice warn">Attention, il te reste ${n} crédit${n>1?'s':''} séance. Pense à contacter Marine pour en rajouter.</div>`;
+  return '';
 }
 function vueMesCours(){
   const mes = S.creneaux.filter(c => c.mon_statut && new Date(c.debut) > new Date() && c.statut==='ouvert');
   const passes = S.historique.filter(r => r.creneaux && new Date(r.creneaux.debut) <= new Date());
   return `
+    ${alerteCredits()}
     <div class="section-title">Mes prochains cours</div>
     ${mes.length ? `<div class="stack">${mes.map(c=>carteCreneau(c,false)).join('')}</div>`
       : `<div class="empty">${ICO.empty}<div>Tu n’es inscrite à aucun cours à venir.</div>
@@ -586,7 +594,8 @@ function vueCompte(){
     <div class="card stack" style="align-items:center; text-align:center; padding-block:22px">
       <div style="font-family:Fraunces,serif; font-size:46px; font-weight:600; line-height:1; color:var(--accent)">${p.credits}</div>
       <div class="muted" style="margin-top:-4px">séance${p.credits>1?'s':''} restante${p.credits>1?'s':''} sur ta carte</div>
-      <div class="faint">Seul le cabinet ajoute des séances, selon ce que tu as réglé. Une séance est décomptée dès que tu réserves, et elle t’est rendue si tu annules plus de ${S.params.delai_annulation_h} h avant le cours.</div>
+      ${alerteCredits()}
+      <div class="faint">Seule Marine ajoute des séances, selon ce que tu as réglé. Une séance est décomptée dès que tu réserves, et elle t’est rendue si tu annules plus de ${S.params.delai_annulation_h} h avant le cours.</div>
     </div>
 
     <div class="section-title">Mes informations</div>
@@ -943,7 +952,7 @@ document.addEventListener('click', async (e) => {
       const r = await rpc('reserver', { p_creneau: el.dataset.id });
       await Promise.all([chargerProfil(), chargerCreneaux()]);
       flash('ok', r.statut === 'confirmee'
-        ? 'C’est réservé. Une séance a été décomptée.'
+        ? `C’est réservé ! 1 crédit séance décompté, il t’en reste ${S.profil.credits}.`
         : 'Tu es sur la liste d’attente. Tu auras la place automatiquement si quelqu’un annule.');
     }); break;
 
@@ -957,7 +966,7 @@ document.addEventListener('click', async (e) => {
       await agir(async()=>{
         const r = await rpc('annuler', { p_reservation: el.dataset.id });
         await Promise.all([chargerProfil(), chargerCreneaux()]);
-        flash(r.rembourse?'ok':'err', r.rembourse ? 'Réservation annulée, séance rendue.' : 'Réservation annulée — la séance a été décomptée.');
+        flash(r.rembourse?'ok':'err', r.rembourse ? `Réservation annulée, crédit séance rendu. Il t’en reste ${S.profil.credits}.` : `Réservation annulée — le crédit séance a été décompté. Il t’en reste ${S.profil.credits}.`);
       }); break;
     }
 
