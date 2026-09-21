@@ -405,8 +405,12 @@ function detailLots(id, pourCliente){
   if (!ls.length) return '';
   return `<div class="stack" style="gap:4px; width:100%; text-align:left">${ls.map(l => `
     <div class="row-between" style="font-size:14px; gap:8px"><span style="white-space:nowrap">${seances(l.restant)}</span>
-      <span class="${l.expire_le ? '' : 'faint'}" style="flex:1; text-align:right">${l.expire_le ? `à utiliser avant le <b>${esc(fExp(l.expire_le))}</b>` : 'sans date limite'}</span>
-      ${pourCliente ? '' : `<button class="btn dangerish xs" data-act="suppr-lot" data-id="${l.id}" aria-label="Retirer ces séances">✕</button>`}</div>`).join('')}</div>`;
+      ${pourCliente
+        ? `<span class="${l.expire_le ? '' : 'faint'}" style="flex:1; text-align:right">${l.expire_le ? `à utiliser avant le <b>${esc(fExp(l.expire_le))}</b>` : 'sans date limite'}</span>`
+        : `<label class="faint" style="flex:1; text-align:right; font-size:12.5px">avant le
+             <input type="date" data-lot-date="${l.id}" value="${l.expire_le||''}" min="${dayKey(new Date())}" style="width:auto; padding:4px 6px; font-size:13px; display:inline-block"></label>
+           <button class="btn dangerish xs" data-act="suppr-lot" data-id="${l.id}" aria-label="Retirer ces séances">✕</button>`}</div>`).join('')}
+    ${pourCliente ? '' : '<div class="faint" style="font-size:12.5px">Change la date d’un paquet directement ci-dessus (vide = sans limite).</div>'}</div>`;
 }
 async function chargerNotifs(){
   const { data } = await sb.from('notifications').select('*').order('cree_le', { ascending:false }).limit(40);
@@ -1156,11 +1160,11 @@ function detailAdherente(a){
       <div class="muted" style="margin-top:-4px">séance${a.credits>1?'s':''} restante${a.credits>1?'s':''}</div>
       ${detailLots(a.id)}
       <div class="faint">Ajoute les séances qu’elle a réglées au cabinet.</div>
-      <div class="field" style="width:100%; margin:0; text-align:left"><label for="ad-exp">À utiliser avant le (facultatif)</label>
+      <div class="field" style="width:100%; margin:0; text-align:left"><label for="ad-exp">Date limite des séances que tu ajoutes (facultatif)</label>
         <input id="ad-exp" type="date" min="${dayKey(new Date())}"></div>
       <div style="font-weight:700; width:100%; text-align:left">Ajouter</div>
       <div class="row" style="flex-wrap:wrap; justify-content:center">
-        ${[1,5,10].map(n=>`<button class="btn sm" data-act="credits" data-id="${a.id}" data-n="${n}">+${n}</button>`).join('')}
+        ${[1,2,3,4,5,10].map(n=>`<button class="btn sm" data-act="credits" data-id="${a.id}" data-n="${n}">+${n}</button>`).join('')}
       </div>
       <div style="font-weight:700; width:100%; text-align:left; margin-top:6px">Retirer</div>
       <div class="row" style="flex-wrap:wrap; justify-content:center">
@@ -1438,6 +1442,16 @@ document.addEventListener('input', (e)=>{
   if (e.target.dataset.act === 'recherche'){ S.recherche = e.target.value; const v = e.target.value; render();
     const f = $('#q'); if (f){ f.focus(); f.setSelectionRange(v.length, v.length); } }
 });
+document.addEventListener('change', async (e) => {
+  const el = e.target.closest('[data-lot-date]');
+  if (!el) return;
+  await agir(async()=>{
+    await rpc('admin_date_lot', { p_lot: el.dataset.lotDate, p_expire: el.value || null });
+    await chargerLots();
+    flash('ok', el.value ? `Date limite mise au ${fExp(el.value)}. La cliente est prévenue.` : 'Date limite retirée.');
+  });
+});
+
 document.addEventListener('submit', async (e) => {
   e.preventDefault();
   const f = e.target;
