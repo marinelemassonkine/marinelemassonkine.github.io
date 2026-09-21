@@ -5,8 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#1F5148">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="Pilates">
-<title>Réservation Pilates</title>
+<meta name="apple-mobile-web-app-title" content="Marine Le Masson">
+<title>Marine Le Masson · Renforcement musculaire</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=DM+Sans:wght@400;500;700&display=swap">
@@ -319,7 +319,7 @@ async function chargerProfil(){
   const { data } = await sb.from('adherentes').select('*').eq('id', S.session.user.id).maybeSingle();
   S.profil = data || null;
   const p = await sb.from('parametres').select('*').maybeSingle();
-  S.params = p.data || { nom_cabinet:'Cabinet de Pilates', delai_annulation_h:24, message_accueil:'' };
+  S.params = p.data || { nom_cabinet:'Marine Le Masson', delai_annulation_h:24, message_accueil:'' };
 }
 async function chargerCreneaux(){
   const { data, error } = await sb.rpc('liste_creneaux', { p_jours: 365 });
@@ -392,7 +392,7 @@ function coque(){
   <header class="topbar"><div class="wrap topbar-in">
     <div class="brand">
       <h1>${esc(S.params.nom_cabinet)}</h1>
-      <div class="sub">${admin ? 'Espace cabinet' : 'Réservation de cours'}</div>
+      <div class="sub">${admin ? `<span class="badge ok">Administratrice</span> ${esc(S.profil.prenom||'')}` : 'Renforcement musculaire des muscles profonds'}</div>
     </div>
     ${admin ? '' : `<div class="credit-pill">${S.profil.credits}<span>séance${S.profil.credits>1?'s':''}</span></div>`}
   </div></header>
@@ -433,8 +433,8 @@ function vueAuth(){
       <h1>${oubli ? 'Mot de passe oublié' : inscription ? 'Créer mon compte' : 'Bienvenue'}</h1>
       <p>${oubli ? 'On t’envoie un lien pour choisir un nouveau mot de passe.'
           : inscription ? 'Quelques informations et ta praticienne validera ton inscription.'
-          : 'Connecte-toi pour réserver tes cours de Pilates.'}</p>
-      ${(oubli||inscription) ? '' : `<p class="auth-sous" style="font-size:13px;opacity:.75;margin-top:6px;line-height:1.45">Renforcement musculaire des muscles profonds<br>avec Marine Le Masson, kiné spécialisée en rééducation pelvi-périnéale</p>`}
+          : 'Renforcement musculaire des muscles profonds'}</p>
+      ${(oubli||inscription) ? '' : `<p class="auth-sous" style="font-size:13px;opacity:.75;margin-top:6px;line-height:1.45">Avec Marine Le Masson, kiné spécialisée en rééducation pelvi-périnéale</p>`}
     </div>
     ${S.notice ? `<div class="notice ${S.notice.type}">${esc(S.notice.texte)}</div>` : ''}
     <form id="fauth" class="card">
@@ -694,7 +694,7 @@ function vueAdminPlanning(){
 }
 function vueAdminAdherentes(){
   const q = S.recherche.toLowerCase();
-  const liste = S.adherentes.filter(a => !q || (a.nom+' '+a.prenom+' '+a.email+' '+a.telephone).toLowerCase().includes(q));
+  const liste = S.adherentes.filter(a => a.role !== 'admin').filter(a => !q || (a.nom+' '+a.prenom+' '+a.email+' '+a.telephone).toLowerCase().includes(q));
   const attente = liste.filter(a=>a.statut==='en_attente');
   const actives = liste.filter(a=>a.statut==='active');
   const inactives = liste.filter(a=>a.statut==='inactive');
@@ -813,7 +813,7 @@ function formNouveauCreneau(){
       <div class="field"><label for="c-duree">Durée (min)</label><input id="c-duree" name="duree" type="number" min="15" max="180" value="55" required></div>
       <div class="field"><label for="c-cap">Places</label><input id="c-cap" name="capacite" type="number" min="1" max="40" value="8" required></div>
     </div>
-    <div class="field"><label for="c-titre">Intitulé</label><input id="c-titre" name="titre" value="Pilates" required></div>
+    <div class="field"><label for="c-titre">Intitulé</label><input id="c-titre" name="titre" value="Renforcement musculaire" required></div>
     <div class="field"><label for="c-lieu">Lieu (facultatif)</label><input id="c-lieu" name="lieu" placeholder="Cabinet"></div>
     <div class="field"><label for="c-note">Note affichée sur le cours (facultatif)</label><input id="c-note" name="note" placeholder="Ex. : niveau débutant"></div>
     <div class="field"><label for="c-rep">Répéter chaque semaine, pendant</label>
@@ -837,7 +837,7 @@ function detailCreneau(c){
   const att  = parts.filter(p=>p.statut==='attente');
   const libres = Math.max(0, c.capacite - conf.length);
   const passe = new Date(c.debut) <= new Date();
-  const dispo = S.adherentes.filter(a=>a.statut==='active' && !parts.some(p=>p.adherente_id===a.id));
+  const dispo = S.adherentes.filter(a=>a.role!=='admin' && a.statut==='active' && !parts.some(p=>p.adherente_id===a.id));
 
   const ligne = p => `<div class="person">
       <div class="avatar">${esc(((p.prenom||' ')[0]+(p.nom||' ')[0]).toUpperCase())}</div>
@@ -1043,7 +1043,7 @@ document.addEventListener('click', async (e) => {
     }
 
     case 'copier': try { await navigator.clipboard.writeText(el.dataset.lien); flash('ok','Lien copié.'); } catch { flash('err','Copie impossible — sélectionne le lien à la main.'); } break;
-    case 'partager': if (navigator.share) { try { await navigator.share({title:S.params.nom_cabinet, text:'Réserve tes cours de Pilates ici :', url:el.dataset.lien}); } catch {} } else { try { await navigator.clipboard.writeText(el.dataset.lien); flash('ok','Lien copié.'); } catch {} } break;
+    case 'partager': if (navigator.share) { try { await navigator.share({title:S.params.nom_cabinet, text:'Réserve tes cours de renforcement musculaire ici :', url:el.dataset.lien}); } catch {} } else { try { await navigator.clipboard.writeText(el.dataset.lien); flash('ok','Lien copié.'); } catch {} } break;
   }
 });
 
@@ -1110,7 +1110,7 @@ document.addEventListener('submit', async (e) => {
     const lignes = Array.from({length:n}, (_,i)=>{
       const dt = new Date(base.getTime()); dt.setDate(dt.getDate() + i*7);
       return { debut: dt.toISOString(), duree_min:Number(d.duree), capacite:Number(d.capacite),
-               titre:d.titre.trim() || 'Pilates', lieu:(d.lieu||'').trim(), note:(d.note||'').trim() };
+               titre:d.titre.trim() || 'Renforcement musculaire', lieu:(d.lieu||'').trim(), note:(d.note||'').trim() };
     });
     const { error } = await sb.from('creneaux').insert(lignes);
     if (error) throw error;
