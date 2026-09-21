@@ -1078,7 +1078,7 @@ function formNouveauCreneau(){
       <div class="field"><label for="c-duree">Durée (min)</label><input id="c-duree" name="duree" type="number" min="15" max="180" value="55" required></div>
       <div class="field"><label for="c-cap">Places</label><input id="c-cap" name="capacite" type="number" min="1" max="40" value="8" required></div>
     </div>
-    <div class="field"><label for="c-titre">Intitulé</label><input id="c-titre" name="titre" value="Renforcement musculaire" required></div>
+    <div class="field"><label for="c-titre">Intitulé</label><input id="c-titre" name="titre" value="Renforcement musculaire des muscles profonds" required></div>
     <div class="field"><label for="c-lieu">Lieu (facultatif)</label><input id="c-lieu" name="lieu" placeholder="Cabinet"></div>
     <div class="field"><label for="c-note">Note affichée sur le cours (facultatif)</label><input id="c-note" name="note" placeholder="Ex. : niveau débutant"></div>
     <div class="field"><label for="c-rep">Répéter chaque semaine, pendant</label>
@@ -1493,7 +1493,7 @@ document.addEventListener('submit', async (e) => {
     const lignes = Array.from({length:n}, (_,i)=>{
       const dt = new Date(base.getTime()); dt.setDate(dt.getDate() + i*7);
       return { debut: dt.toISOString(), duree_min:Number(d.duree), capacite:Number(d.capacite),
-               titre:d.titre.trim() || 'Renforcement musculaire', lieu:(d.lieu||'').trim(), note:(d.note||'').trim() };
+               titre:d.titre.trim() || 'Renforcement musculaire des muscles profonds', lieu:(d.lieu||'').trim(), note:(d.note||'').trim() };
     });
     const { error } = await sb.from('creneaux').insert(lignes);
     if (error) throw error;
