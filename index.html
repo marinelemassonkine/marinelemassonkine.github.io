@@ -1,0 +1,1152 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#1F5148">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Pilates">
+<title>Réservation Pilates</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=DM+Sans:wght@400;500;700&display=swap">
+<style>
+:root{
+  --bg:#F6F6F2; --surface:#FFFFFF; --surface-2:#F1F2ED;
+  --ink:#17211D; --ink-soft:#5C6B64; --ink-faint:#8B968F;
+  --line:#E2E5DE; --line-strong:#CFD5CC;
+  --accent:#1F5148; --accent-ink:#FFFFFF; --accent-soft:#E7F0EB;
+  --ok:#2C6A4F; --ok-soft:#E3F1E7;
+  --warn:#8A5A12; --warn-soft:#FAF0DC;
+  --danger:#9C3A2C; --danger-soft:#FAE7E3;
+  --radius:14px; --radius-sm:9px;
+  --shadow:0 1px 2px rgba(23,33,29,.05), 0 8px 24px -14px rgba(23,33,29,.22);
+  color-scheme:light;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --bg:#111512; --surface:#191E1B; --surface-2:#222825;
+    --ink:#E9EEE9; --ink-soft:#9DAAA3; --ink-faint:#76837C;
+    --line:#2A312D; --line-strong:#3A433D;
+    --accent:#82C5AE; --accent-ink:#0E1614; --accent-soft:#1D2A26;
+    --ok:#82C5AE; --ok-soft:#1B2724;
+    --warn:#DFB264; --warn-soft:#2A2318;
+    --danger:#E0897A; --danger-soft:#2C1D1A;
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -14px rgba(0,0,0,.7);
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#111512; --surface:#191E1B; --surface-2:#222825;
+  --ink:#E9EEE9; --ink-soft:#9DAAA3; --ink-faint:#76837C;
+  --line:#2A312D; --line-strong:#3A433D;
+  --accent:#82C5AE; --accent-ink:#0E1614; --accent-soft:#1D2A26;
+  --ok:#82C5AE; --ok-soft:#1B2724;
+  --warn:#DFB264; --warn-soft:#2A2318;
+  --danger:#E0897A; --danger-soft:#2C1D1A;
+  color-scheme:dark;
+}
+
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{
+  background:var(--bg); color:var(--ink);
+  font-family:"DM Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-size:16px; line-height:1.5;
+  -webkit-font-smoothing:antialiased;
+  padding-top:env(safe-area-inset-top,0px);
+}
+img{max-width:100%}
+[hidden]{display:none !important}
+h1,h2,h3{font-family:"Fraunces", ui-serif, Georgia, serif; font-weight:500; margin:0; text-wrap:balance; letter-spacing:-.01em}
+
+.wrap{max-width:600px; margin:0 auto; padding:0 16px}
+
+/* ---------- header ---------- */
+.topbar{
+  position:sticky; top:env(safe-area-inset-top,0px); z-index:20;
+  background:color-mix(in srgb, var(--bg) 88%, transparent);
+  backdrop-filter:blur(10px);
+  border-bottom:1px solid var(--line);
+}
+.topbar-in{display:flex; align-items:center; gap:12px; padding-block:12px; min-height:60px}
+.brand{flex:1; min-width:0}
+.brand h1{font-size:19px; line-height:1.2; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+.brand .sub{font-size:12.5px; color:var(--ink-faint); letter-spacing:.04em; text-transform:uppercase}
+.credit-pill{
+  display:flex; align-items:baseline; gap:5px; flex:none;
+  background:var(--accent-soft); color:var(--accent);
+  padding:7px 12px; border-radius:999px; font-weight:700; font-size:15px;
+  font-variant-numeric:tabular-nums;
+}
+.credit-pill span{font-size:11.5px; font-weight:500; text-transform:uppercase; letter-spacing:.05em}
+
+/* ---------- nav ---------- */
+.tabs{
+  position:sticky; bottom:0; z-index:20; margin-top:28px;
+  background:color-mix(in srgb, var(--surface) 92%, transparent);
+  backdrop-filter:blur(10px);
+  border-top:1px solid var(--line);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+}
+.tabs-in{display:flex; max-width:600px; margin:0 auto}
+.tab{
+  flex:1; border:0; background:none; cursor:pointer;
+  padding:10px 4px 12px; color:var(--ink-faint);
+  font-family:inherit; font-size:11.5px; font-weight:500; letter-spacing:.02em;
+  display:flex; flex-direction:column; align-items:center; gap:4px;
+  border-top:2px solid transparent; margin-top:-1px;
+}
+.tab svg{width:21px; height:21px; stroke:currentColor; fill:none; stroke-width:1.6; stroke-linecap:round; stroke-linejoin:round}
+.tab[aria-current="page"]{color:var(--accent); border-top-color:var(--accent)}
+/* ---------- blocks ---------- */
+main{padding-block:20px 8px; min-height:60vh}
+.section-title{font-size:12px; text-transform:uppercase; letter-spacing:.08em; color:var(--ink-faint); font-weight:700; margin:26px 0 10px}
+.section-title:first-child{margin-top:0}
+
+.card{background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); padding:15px}
+.stack{display:flex; flex-direction:column; gap:10px}
+.row{display:flex; gap:10px; align-items:center}
+.row-between{display:flex; gap:10px; align-items:center; justify-content:space-between}
+.grow{flex:1; min-width:0}
+.muted{color:var(--ink-soft); font-size:14px}
+.faint{color:var(--ink-faint); font-size:13px}
+
+/* annonces */
+.annonce{border-radius:var(--radius-sm); padding:11px 13px; font-size:14px; line-height:1.45; margin-bottom:10px; border:1px solid transparent}
+.annonce.info{background:var(--accent-soft); color:var(--accent); border-color:color-mix(in srgb, var(--accent) 20%, transparent)}
+.annonce.important{background:var(--warn-soft); color:var(--warn); border-color:color-mix(in srgb, var(--warn) 30%, transparent)}
+.annonce b{display:block; font-size:11px; text-transform:uppercase; letter-spacing:.07em; opacity:.8; margin-bottom:3px; font-weight:700}
+
+/* day heading */
+.day{
+  display:flex; align-items:baseline; gap:8px;
+  margin:24px 0 9px; padding-bottom:6px; border-bottom:1px solid var(--line);
+}
+.day strong{font-family:"Fraunces",serif; font-size:16px; font-weight:500; text-transform:capitalize}
+.day span{font-size:12.5px; color:var(--ink-faint)}
+
+/* slot */
+.slot{display:flex; gap:13px; background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); padding:14px; box-shadow:var(--shadow)}
+.slot.mine{border-color:color-mix(in srgb, var(--ok) 45%, var(--line))}
+.slot.off{opacity:.62}
+.time{flex:none; width:52px; text-align:center; font-variant-numeric:tabular-nums}
+.time b{display:block; font-size:17px; font-weight:700; letter-spacing:-.02em}
+.time small{display:block; font-size:11.5px; color:var(--ink-faint); margin-top:1px}
+.slot-body{flex:1; min-width:0; display:flex; flex-direction:column; gap:7px}
+.slot-title{font-weight:700; font-size:15px}
+
+.seats{display:flex; align-items:center; gap:7px; font-size:13px; color:var(--ink-soft)}
+.pips{display:flex; gap:3px}
+.pip{width:7px; height:7px; border-radius:2px; background:var(--accent); opacity:.85}
+.pip.free{background:var(--line-strong); opacity:1}
+
+.badge{display:inline-flex; align-items:center; gap:5px; align-self:flex-start; font-size:12px; font-weight:700; padding:3px 9px; border-radius:999px; letter-spacing:.01em}
+.badge.ok{background:var(--ok-soft); color:var(--ok)}
+.badge.wait{background:var(--warn-soft); color:var(--warn)}
+.badge.off{background:var(--danger-soft); color:var(--danger)}
+.badge.neutral{background:var(--surface-2); color:var(--ink-soft)}
+/* ---------- calendrier ---------- */
+.seg{display:flex; gap:4px; background:var(--surface-2); padding:3px; border-radius:11px; margin-bottom:14px}
+.seg button{flex:1; border:0; background:none; padding:8px 10px; border-radius:8px; font-size:13px; font-weight:700; color:var(--ink-soft); cursor:pointer; font-family:inherit}
+.seg button[aria-pressed="true"]{background:var(--surface); color:var(--ink); box-shadow:var(--shadow)}
+
+.cal-head{display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:12px}
+.cal-head strong{font-family:"Fraunces",serif; font-size:18px; font-weight:500; text-transform:capitalize}
+.nav-mois{display:flex; gap:6px}
+.nav-mois button{width:36px; height:36px; border-radius:10px; border:1px solid var(--line-strong); background:var(--surface); color:var(--ink); font-size:17px; cursor:pointer; line-height:1; font-family:inherit}
+.cal{display:grid; grid-template-columns:repeat(7,1fr); gap:5px}
+.cal .dow{text-align:center; font-size:10.5px; font-weight:700; color:var(--ink-faint); text-transform:uppercase; letter-spacing:.05em; padding-bottom:2px}
+.jour{
+  aspect-ratio:1; border:1px solid var(--line); border-radius:10px; background:var(--surface);
+  display:flex; flex-direction:column; align-items:center; justify-content:center; gap:4px;
+  cursor:pointer; font-size:13.5px; font-variant-numeric:tabular-nums; color:var(--ink);
+  font-family:inherit; padding:2px;
+}
+.jour.vide{border:0; background:none; cursor:default}
+.jour.auj{border-color:var(--accent); font-weight:700}
+.jour.sel{background:var(--accent); color:var(--accent-ink); border-color:var(--accent); font-weight:700}
+.jour .pts{display:flex; gap:2px; height:5px}
+.jour .pt{width:5px; height:5px; border-radius:50%; background:var(--accent)}
+.jour .pt.plein{background:var(--warn)}
+.jour.sel .pt{background:var(--accent-ink); opacity:.5}
+.jour.sel .pt.plein{opacity:1}
+.legende{display:flex; gap:14px; flex-wrap:wrap; margin-top:12px; font-size:12px; color:var(--ink-faint)}
+.legende span{display:flex; align-items:center; gap:5px}
+.legende i{width:6px; height:6px; border-radius:50%; display:block}
+
+/* buttons */
+button{font-family:inherit}
+.btn{
+  display:inline-flex; align-items:center; justify-content:center; gap:7px;
+  border:1px solid transparent; border-radius:var(--radius-sm);
+  padding:11px 15px; font-size:14.5px; font-weight:700; cursor:pointer;
+  background:var(--accent); color:var(--accent-ink); line-height:1.2;
+  transition:transform .08s ease, opacity .15s ease;
+}
+.btn:active{transform:scale(.985)}
+.btn:disabled{opacity:.5; cursor:not-allowed}
+.btn.ghost{background:transparent; color:var(--ink); border-color:var(--line-strong)}
+.btn.soft{background:var(--surface-2); color:var(--ink); border-color:transparent}
+.btn.warnish{background:var(--warn-soft); color:var(--warn); border-color:transparent}
+.btn.dangerish{background:transparent; color:var(--danger); border-color:color-mix(in srgb, var(--danger) 35%, transparent)}
+.btn.full{width:100%}
+.btn.sm{padding:7px 11px; font-size:13px; border-radius:8px}
+.btn.xs{padding:5px 9px; font-size:12.5px; border-radius:7px; font-weight:700}
+.btn:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible{
+  outline:2px solid var(--accent); outline-offset:2px;
+}
+/* forms */
+label{display:block; font-size:12.5px; font-weight:700; color:var(--ink-soft); margin-bottom:5px; letter-spacing:.01em}
+input, select, textarea{
+  width:100%; font-family:inherit; font-size:16px; color:var(--ink);
+  background:var(--surface); border:1px solid var(--line-strong);
+  border-radius:var(--radius-sm); padding:11px 12px;
+}
+textarea{resize:vertical; min-height:64px}
+.field{margin-bottom:13px}
+.fields-2{display:grid; grid-template-columns:1fr 1fr; gap:11px}
+@media (max-width:420px){ .fields-2{grid-template-columns:1fr} }
+
+.notice{border-radius:var(--radius-sm); padding:11px 13px; font-size:14px; margin-bottom:14px; line-height:1.45}
+.notice.err{background:var(--danger-soft); color:var(--danger)}
+.notice.ok{background:var(--ok-soft); color:var(--ok)}
+.notice.info{background:var(--accent-soft); color:var(--accent)}
+
+/* auth */
+.auth{max-width:420px; margin:0 auto; padding-block:36px 40px}
+.auth-head{text-align:center; margin-bottom:26px}
+.auth-head h1{font-size:28px; margin-bottom:7px}
+.auth-head p{margin:0; color:var(--ink-soft); font-size:14.5px}
+.mark{width:46px; height:46px; margin:0 auto 16px; border-radius:50%; background:var(--accent-soft); display:grid; place-items:center}
+.mark svg{width:24px; height:24px; stroke:var(--accent); fill:none; stroke-width:1.5; stroke-linecap:round}
+.switch{text-align:center; margin-top:16px; font-size:14px; color:var(--ink-soft)}
+.linkish{background:none; border:0; color:var(--accent); font-weight:700; cursor:pointer; font-size:14px; padding:2px 4px; text-decoration:underline; text-underline-offset:2px}
+
+/* person row */
+.person{display:flex; align-items:center; gap:11px; padding:12px 0; border-bottom:1px solid var(--line); flex-wrap:wrap}
+.person:last-child{border-bottom:0}
+.avatar{flex:none; width:36px; height:36px; border-radius:50%; background:var(--accent-soft); color:var(--accent); display:grid; place-items:center; font-weight:700; font-size:13px}
+.name{font-weight:700; font-size:14.5px}
+.count{flex:none; font-variant-numeric:tabular-nums; font-weight:700; font-size:14px; color:var(--ink)}
+
+/* modal */
+.sheet-bg{position:fixed; inset:0; background:rgba(10,16,14,.5); z-index:50; display:flex; align-items:flex-end; justify-content:center}
+.sheet{
+  background:var(--bg); width:100%; max-width:600px; max-height:90vh; overflow-y:auto;
+  border-radius:18px 18px 0 0; padding:18px 16px calc(24px + env(safe-area-inset-bottom,0px));
+  border:1px solid var(--line); border-bottom:0;
+}
+@media (min-width:640px){ .sheet-bg{align-items:center} .sheet{border-radius:18px; border-bottom:1px solid var(--line); max-height:86vh} }
+.sheet-head{display:flex; align-items:flex-start; gap:12px; margin-bottom:16px}
+.sheet-head h2{font-size:20px; flex:1}
+.x{border:0; background:var(--surface-2); color:var(--ink-soft); width:32px; height:32px; border-radius:50%; font-size:17px; cursor:pointer; line-height:1; flex:none}
+
+.empty{text-align:center; padding:38px 18px; color:var(--ink-faint)}
+.empty svg{width:34px; height:34px; stroke:currentColor; fill:none; stroke-width:1.3; margin-bottom:10px}
+
+.hist{display:flex; justify-content:space-between; gap:12px; padding:9px 0; border-bottom:1px solid var(--line); font-size:13.5px}
+.hist:last-child{border-bottom:0}
+.delta{font-weight:700; font-variant-numeric:tabular-nums; flex:none}
+.delta.plus{color:var(--ok)} .delta.minus{color:var(--ink-soft)} .delta.zero{color:var(--danger)}
+
+.loading{text-align:center; padding:50px 0; color:var(--ink-faint); font-size:14px}
+.share{background:var(--surface-2); border-radius:var(--radius-sm); padding:11px 12px; font-size:13px; word-break:break-all; color:var(--ink-soft); font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+@media (prefers-reduced-motion:reduce){ *{animation:none !important; transition:none !important} }
+</style>
+</head>
+<body>
+<div id="root"><div class="loading">Chargement…</div></div>
+<script type="module">
+import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/+esm';
+
+const SUPABASE_URL = 'https://rdisjxpjmzjivlwlaycb.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_bS-fbBuW7ru_xDywDv_A2A_xHGRGUeN';
+const sb = createClient(SUPABASE_URL, SUPABASE_KEY);
+
+/* ------------------------------------------------------------------ état */
+const aujourdhui = new Date();
+const S = {
+  session:null, profil:null, params:null,
+  vue:'cours', creneaux:[], adherentes:[], mouvements:[], historique:[], annonces:[],
+  planningVue:'calendrier',
+  mois:new Date(aujourdhui.getFullYear(), aujourdhui.getMonth(), 1),
+  jourSel:null,
+  sheet:null, notice:null, authMode:'login', busy:false, recherche:''
+};
+
+/* ------------------------------------------------------------------ utils */
+const $ = (s,r=document)=>r.querySelector(s);
+const esc = s => String(s??'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const fDay  = d => new Intl.DateTimeFormat('fr-FR',{weekday:'long',day:'numeric',month:'long'}).format(d);
+const fTime = d => new Intl.DateTimeFormat('fr-FR',{hour:'2-digit',minute:'2-digit'}).format(d);
+const fDate = d => new Intl.DateTimeFormat('fr-FR',{day:'2-digit',month:'2-digit',year:'numeric'}).format(d);
+const fCourt = d => new Intl.DateTimeFormat('fr-FR',{day:'2-digit',month:'2-digit'}).format(d);
+const dayKey = d => d.toLocaleDateString('fr-CA');
+const dePuisCle = k => new Date(k + 'T12:00:00');
+const initiales = p => ((p.prenom||' ')[0] + (p.nom||' ')[0]).toUpperCase().trim() || '?';
+const seances = n => n + ' séance' + (n>1?'s':'');
+
+const ERREURS = {
+  non_connectee:"Tu n'es plus connectée. Recharge la page.",
+  compte_introuvable:"Compte introuvable.",
+  compte_non_valide:"Ton compte n'est pas encore validé par le cabinet.",
+  creneau_introuvable:"Ce cours n'existe plus.",
+  creneau_annule:"Ce cours a été annulé.",
+  creneau_passe:"Ce cours est déjà passé.",
+  deja_inscrite:"Tu es déjà inscrite à ce cours.",
+  credits_insuffisants:"Il ne te reste aucune séance. Contacte le cabinet pour en ajouter.",
+  reservation_introuvable:"Réservation introuvable.",
+  non_autorisee:"Action non autorisée.",
+  adherente_introuvable:"Adhérente introuvable.",
+  valeur_nulle:"Indique un nombre différent de zéro.",
+  valeur_invalide:"Valeur invalide."
+};
+function messageErreur(e){
+  const m = (e && (e.message || e.error_description || e.msg)) || 'Une erreur est survenue.';
+  for (const k in ERREURS) if (m.includes(k)) return ERREURS[k];
+  if (m.includes('Invalid login credentials')) return "Email ou mot de passe incorrect.";
+  if (m.includes('already registered') || m.includes('already been registered')) return "Un compte existe déjà avec cet email.";
+  if (m.includes('Password should be')) return "Le mot de passe doit faire au moins 8 caractères.";
+  if (m.includes('Email not confirmed')) return "Ton email n'est pas confirmé. Contacte le cabinet.";
+  if (m.includes('duplicate key')) return "Tu es déjà inscrite à ce cours.";
+  if (m.includes('rate limit') || m.includes('Too many')) return "Trop de tentatives, réessaie dans quelques minutes.";
+  return m;
+}
+function flash(type, texte){ S.notice = {type, texte}; render(); setTimeout(()=>{ if(S.notice && S.notice.texte===texte){ S.notice=null; render(); } }, 6000); }
+/* ------------------------------------------------------------------ données */
+async function chargerProfil(){
+  const { data } = await sb.from('adherentes').select('*').eq('id', S.session.user.id).maybeSingle();
+  S.profil = data || null;
+  const p = await sb.from('parametres').select('*').maybeSingle();
+  S.params = p.data || { nom_cabinet:'Cabinet de Pilates', delai_annulation_h:24, message_accueil:'' };
+}
+async function chargerCreneaux(){
+  const { data, error } = await sb.rpc('liste_creneaux', { p_jours: 365 });
+  if (error) { flash('err', messageErreur(error)); return; }
+  S.creneaux = data || [];
+}
+async function chargerAnnonces(){
+  const { data } = await sb.from('annonces').select('*').order('cree_le', { ascending:false });
+  S.annonces = data || [];
+}
+async function chargerMouvements(){
+  const { data } = await sb.from('mouvements_credits').select('*').order('cree_le',{ascending:false}).limit(40);
+  S.mouvements = data || [];
+}
+async function chargerHistorique(){
+  const { data } = await sb.from('reservations')
+    .select('id,statut,presence,cree_le,creneaux(debut,titre,lieu)')
+    .order('cree_le',{ascending:false}).limit(60);
+  S.historique = data || [];
+}
+async function chargerAdherentes(){
+  const { data } = await sb.from('adherentes').select('*').order('statut').order('nom');
+  S.adherentes = data || [];
+}
+const estAdmin = () => S.profil && S.profil.role === 'admin';
+
+function annoncesActives(){
+  const auj = dayKey(new Date());
+  return S.annonces.filter(a =>
+    (!a.debut || a.debut <= auj) && (!a.fin || a.fin >= auj));
+}
+function periodeAnnonce(a){
+  if (a.debut && a.fin)  return `Du ${fCourt(dePuisCle(a.debut))} au ${fCourt(dePuisCle(a.fin))}`;
+  if (a.debut)           return `À partir du ${fCourt(dePuisCle(a.debut))}`;
+  if (a.fin)             return `Jusqu'au ${fCourt(dePuisCle(a.fin))}`;
+  return 'En permanence';
+}
+
+/* ------------------------------------------------------------------ actions */
+async function agir(fn){
+  if (S.busy) return;
+  S.busy = true; render();
+  try { await fn(); }
+  catch(e){ flash('err', messageErreur(e)); }
+  finally { S.busy = false; render(); }
+}
+async function rpc(nom, args){
+  const { data, error } = await sb.rpc(nom, args);
+  if (error) throw error;
+  return data;
+}
+
+/* ------------------------------------------------------------------ rendu */
+function render(){
+  const root = $('#root');
+  if (!S.session) { root.innerHTML = vueAuth(); return; }
+  if (!S.profil)  { root.innerHTML = '<div class="loading">Chargement de ton compte…</div>'; return; }
+  root.innerHTML = coque();
+}
+
+function coque(){
+  const admin = estAdmin();
+  let contenu;
+  if (!admin && S.profil.statut === 'en_attente') contenu = vueAttenteValidation();
+  else if (!admin && S.profil.statut === 'refuse') contenu = vueRefusee();
+  else if (!admin && S.profil.statut === 'inactive') contenu = vueSuspendu();
+  else contenu = admin ? vueAdmin() : vueAdherente();
+
+  return `
+  <header class="topbar"><div class="wrap topbar-in">
+    <div class="brand">
+      <h1>${esc(S.params.nom_cabinet)}</h1>
+      <div class="sub">${admin ? 'Espace cabinet' : 'Réservation de cours'}</div>
+    </div>
+    ${admin ? '' : `<div class="credit-pill">${S.profil.credits}<span>séance${S.profil.credits>1?'s':''}</span></div>`}
+  </div></header>
+  <main class="wrap">
+    ${S.notice ? `<div class="notice ${S.notice.type}">${esc(S.notice.texte)}</div>` : ''}
+    ${contenu}
+  </main>
+  ${barreOnglets(admin)}
+  ${S.sheet ? feuille() : ''}`;
+}
+
+function barreOnglets(admin){
+  const items = admin
+    ? [['planning','Planning',ICO.cal],['adherentes','Adhérentes',ICO.users],['reglages','Réglages',ICO.gear]]
+    : [['cours','Les cours',ICO.cal],['mes','Mes cours',ICO.check],['compte','Mon compte',ICO.user]];
+  if (S.profil.statut !== 'active' && !admin) return '';
+  return `<nav class="tabs"><div class="tabs-in">${items.map(([k,l,i])=>`
+    <button class="tab" data-act="vue" data-vue="${k}" ${S.vue===k?'aria-current="page"':''}>${i}<span>${l}</span></button>`).join('')}
+  </div></nav>`;
+}
+
+const ICO = {
+  cal:'<svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>',
+  check:'<svg viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg>',
+  user:'<svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-6.5 8-6.5s8 2.5 8 6.5"/></svg>',
+  users:'<svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.4"/><path d="M2 20c0-3.6 3.2-5.6 7-5.6s7 2 7 5.6"/><path d="M17 6.5a3.4 3.4 0 0 1 0 6.6M18.5 20c0-2.4-.8-4-2-5"/></svg>',
+  gear:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.2"/><path d="M12 2.8v2.4M12 18.8v2.4M4.3 7.4l2 1.2M17.7 15.4l2 1.2M4.3 16.6l2-1.2M17.7 8.6l2-1.2"/></svg>',
+  leaf:'<svg viewBox="0 0 24 24"><path d="M4 20c0-8 5-15 16-16 1 11-5 16-12 16-2 0-4-.6-4-.6Z"/><path d="M9 20c1-5 4-9 8-11"/></svg>',
+  empty:'<svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4M9 16h6"/></svg>'
+};
+/* ---------------------------------------------------------- écran connexion */
+function vueAuth(){
+  const inscription = S.authMode === 'signup';
+  const oubli = S.authMode === 'reset';
+  return `<div class="wrap auth">
+    <div class="auth-head">
+      <div class="mark">${ICO.leaf}</div>
+      <h1>${oubli ? 'Mot de passe oublié' : inscription ? 'Créer mon compte' : 'Bienvenue'}</h1>
+      <p>${oubli ? 'On t’envoie un lien pour choisir un nouveau mot de passe.'
+          : inscription ? 'Quelques informations et ta praticienne validera ton inscription.'
+          : 'Connecte-toi pour réserver tes cours de Pilates.'}</p>
+    </div>
+    ${S.notice ? `<div class="notice ${S.notice.type}">${esc(S.notice.texte)}</div>` : ''}
+    <form id="fauth" class="card">
+      ${inscription ? `
+        <div class="fields-2">
+          <div class="field"><label for="a-prenom">Prénom</label><input id="a-prenom" name="prenom" autocomplete="given-name" required></div>
+          <div class="field"><label for="a-nom">Nom</label><input id="a-nom" name="nom" autocomplete="family-name" required></div>
+        </div>
+        <div class="field"><label for="a-tel">Téléphone</label><input id="a-tel" name="telephone" type="tel" autocomplete="tel" placeholder="06 12 34 56 78" required></div>
+      ` : ''}
+      <div class="field"><label for="a-email">Email</label><input id="a-email" name="email" type="email" autocomplete="email" required></div>
+      ${oubli ? '' : `<div class="field"><label for="a-mdp">Mot de passe</label><input id="a-mdp" name="mdp" type="password" autocomplete="${inscription?'new-password':'current-password'}" minlength="8" required>
+        ${inscription ? '<div class="faint" style="margin-top:6px">8 caractères minimum.</div>' : ''}</div>`}
+      <button class="btn full" type="submit" ${S.busy?'disabled':''}>
+        ${S.busy ? 'Un instant…' : oubli ? 'Envoyer le lien' : inscription ? 'Créer mon compte' : 'Me connecter'}
+      </button>
+      ${inscription ? '<div class="faint" style="margin-top:12px; line-height:1.45">Tes informations servent uniquement à gérer tes réservations au cabinet. Ta praticienne accepte ou refuse chaque inscription.</div>' : ''}
+    </form>
+    <div class="switch">
+      ${oubli
+        ? `<button class="linkish" data-act="mode" data-mode="login">Retour à la connexion</button>`
+        : inscription
+          ? `Déjà un compte ? <button class="linkish" data-act="mode" data-mode="login">Me connecter</button>`
+          : `Pas encore de compte ? <button class="linkish" data-act="mode" data-mode="signup">En créer un</button>
+             <div style="margin-top:8px"><button class="linkish" data-act="mode" data-mode="reset">Mot de passe oublié ?</button></div>`}
+    </div>
+  </div>`;
+}
+
+function ecranSimple(titre, texte, avecLogo){
+  return `<div class="card stack" style="text-align:center; padding:28px 20px">
+    ${avecLogo ? `<div class="mark" style="margin-bottom:4px">${ICO.leaf}</div>` : ''}
+    <h2 style="font-size:20px">${esc(titre)}</h2>
+    <p class="muted" style="margin:0">${esc(texte)}</p>
+    ${avecLogo ? '<button class="btn ghost" data-act="rafraichir">Vérifier maintenant</button>' : ''}
+    <button class="linkish" data-act="deconnexion">Se déconnecter</button>
+  </div>`;
+}
+const vueAttenteValidation = () => ecranSimple(
+  'Ton compte est créé',
+  'Ta praticienne doit encore accepter ton inscription et t’attribuer tes séances. Tu pourras réserver juste après — n’hésite pas à la prévenir.', true);
+const vueRefusee = () => ecranSimple(
+  'Inscription non retenue',
+  'Ta demande d’inscription n’a pas été acceptée. Contacte le cabinet si tu penses qu’il s’agit d’une erreur.', false);
+const vueSuspendu = () => ecranSimple(
+  'Compte en pause',
+  'Ton accès aux réservations est suspendu. Contacte le cabinet pour le réactiver.', false);
+/* ---------------------------------------------------------- espace adhérente */
+function vueAdherente(){
+  if (S.vue === 'mes')    return vueMesCours();
+  if (S.vue === 'compte') return vueCompte();
+  return vueCoursDispo();
+}
+
+function bandeauAnnonces(){
+  const liste = annoncesActives();
+  if (!liste.length) return '';
+  return liste.map(a => `<div class="annonce ${a.ton}">
+    ${a.ton === 'important' ? '<b>Information importante</b>' : ''}
+    ${esc(a.texte)}
+  </div>`).join('');
+}
+
+function carteCreneau(c, admin){
+  const d = new Date(c.debut);
+  const fin = new Date(d.getTime() + c.duree_min*60000);
+  const libres = Math.max(0, c.capacite - c.places_prises);
+  const annule = c.statut === 'annule';
+  const passe = d <= new Date();
+  const mien = c.mon_statut;
+
+  const pips = Array.from({length:Math.min(c.capacite,12)}, (_,i)=>
+    `<i class="pip ${i < c.places_prises ? '' : 'free'}"></i>`).join('');
+
+  let etat;
+  if (annule) etat = '<span class="badge off">Cours annulé</span>';
+  else if (mien === 'confirmee') etat = '<span class="badge ok">Ta place est réservée</span>';
+  else if (mien === 'attente') etat = `<span class="badge wait">Liste d’attente · ${c.ma_position}${c.ma_position===1?'re':'e'}</span>`;
+  else if (libres === 0) etat = '<span class="badge neutral">Complet</span>';
+  else etat = '';
+
+  let action = '';
+  if (admin) {
+    action = `<button class="btn soft sm" data-act="detail" data-id="${c.id}">Voir le cours</button>`;
+  } else if (!annule && !passe) {
+    if (mien) action = `<button class="btn dangerish sm" data-act="annuler" data-id="${c.ma_reservation_id}" data-debut="${c.debut}">Annuler</button>`;
+    else if (libres > 0) action = `<button class="btn sm" data-act="reserver" data-id="${c.id}">Réserver</button>`;
+    else action = `<button class="btn warnish sm" data-act="reserver" data-id="${c.id}">Liste d’attente</button>`;
+  }
+
+  return `<div class="slot ${mien==='confirmee'?'mine':''} ${annule||passe?'off':''}">
+    <div class="time"><b>${fTime(d)}</b><small>${fTime(fin)}</small></div>
+    <div class="slot-body">
+      <div class="slot-title">${esc(c.titre)}${c.lieu?` <span class="faint" style="font-weight:400">· ${esc(c.lieu)}</span>`:''}</div>
+      <div class="seats"><span class="pips">${pips}</span>
+        ${annule ? '—' : `${c.places_prises}/${c.capacite}${libres>0?` · ${libres} place${libres>1?'s':''} libre${libres>1?'s':''}`:''}`}
+        ${c.nb_attente>0 ? ` · ${c.nb_attente} en attente` : ''}
+      </div>
+      ${c.note ? `<div class="faint">${esc(c.note)}</div>` : ''}
+      ${etat}
+    </div>
+    ${action ? `<div style="align-self:center">${action}</div>` : ''}
+  </div>`;
+}
+
+function listeParJour(liste, admin){
+  if (!liste.length) return `<div class="empty">${ICO.empty}<div>Aucun cours programmé pour le moment.</div></div>`;
+  const groupes = {};
+  liste.forEach(c => { const k = dayKey(new Date(c.debut)); (groupes[k] ||= []).push(c); });
+  const auj = dayKey(new Date());
+  const demain = dayKey(new Date(Date.now()+864e5));
+  return Object.keys(groupes).sort().map(k => {
+    const d = new Date(groupes[k][0].debut);
+    const label = k===auj ? "Aujourd'hui" : k===demain ? 'Demain' : fDay(d);
+    return `<div class="day"><strong>${esc(label)}</strong><span>${k===auj||k===demain?fDay(d):''}</span></div>
+      <div class="stack">${groupes[k].map(c=>carteCreneau(c, admin)).join('')}</div>`;
+  }).join('');
+}
+
+function vueCoursDispo(){
+  const futurs = S.creneaux.filter(c => new Date(c.debut) > new Date());
+  return `
+    ${bandeauAnnonces()}
+    ${S.profil.credits === 0 ? `<div class="notice err">Il ne te reste aucune séance. Contacte le cabinet pour recharger ta carte avant de réserver.</div>` : ''}
+    ${listeParJour(futurs, false)}`;
+}
+function vueMesCours(){
+  const mes = S.creneaux.filter(c => c.mon_statut && new Date(c.debut) > new Date() && c.statut==='ouvert');
+  const passes = S.historique.filter(r => r.creneaux && new Date(r.creneaux.debut) <= new Date());
+  return `
+    <div class="section-title">Mes prochains cours</div>
+    ${mes.length ? `<div class="stack">${mes.map(c=>carteCreneau(c,false)).join('')}</div>`
+      : `<div class="empty">${ICO.empty}<div>Tu n’es inscrite à aucun cours à venir.</div>
+         <button class="btn soft sm" style="margin-top:14px" data-act="vue" data-vue="cours">Voir les cours</button></div>`}
+    <div class="section-title">Historique</div>
+    <div class="card">${passes.length ? passes.slice(0,20).map(r=>{
+      const d = new Date(r.creneaux.debut);
+      const et = r.statut==='annulee' ? '<span class="badge off">Annulé</span>'
+        : r.presence==='absente' ? '<span class="badge wait">Absente</span>'
+        : r.statut==='attente' ? '<span class="badge neutral">Liste d’attente</span>'
+        : '<span class="badge ok">Suivi</span>';
+      return `<div class="hist"><div class="grow">${esc(fDay(d))} · ${fTime(d)}<div class="faint">${esc(r.creneaux.titre)}</div></div>${et}</div>`;
+    }).join('') : '<div class="faint">Rien pour l’instant.</div>'}</div>`;
+}
+
+function vueCompte(){
+  const p = S.profil;
+  return `
+    <div class="card stack" style="align-items:center; text-align:center; padding-block:22px">
+      <div style="font-family:Fraunces,serif; font-size:46px; font-weight:600; line-height:1; color:var(--accent)">${p.credits}</div>
+      <div class="muted" style="margin-top:-4px">séance${p.credits>1?'s':''} restante${p.credits>1?'s':''} sur ta carte</div>
+      <div class="faint">Seul le cabinet ajoute des séances, selon ce que tu as réglé. Une séance est décomptée dès que tu réserves, et elle t’est rendue si tu annules plus de ${S.params.delai_annulation_h} h avant le cours.</div>
+    </div>
+
+    <div class="section-title">Mes informations</div>
+    <form id="fprofil" class="card">
+      <div class="fields-2">
+        <div class="field"><label for="p-prenom">Prénom</label><input id="p-prenom" name="prenom" value="${esc(p.prenom)}" required></div>
+        <div class="field"><label for="p-nom">Nom</label><input id="p-nom" name="nom" value="${esc(p.nom)}" required></div>
+      </div>
+      <div class="field"><label for="p-tel">Téléphone</label><input id="p-tel" name="telephone" type="tel" value="${esc(p.telephone)}" required></div>
+      <div class="field"><label for="p-mail">Email</label><input id="p-mail" value="${esc(p.email)}" disabled></div>
+      <button class="btn full" type="submit" ${S.busy?'disabled':''}>Enregistrer</button>
+    </form>
+
+    <div class="section-title">Mouvements de séances</div>
+    <div class="card">${S.mouvements.length ? S.mouvements.map(m=>{
+      const cls = m.delta>0?'plus':m.delta<0?'minus':'zero';
+      const val = m.delta>0?`+${m.delta}`:m.delta<0?`${m.delta}`:'0';
+      return `<div class="hist"><div class="grow">${esc(m.motif)}<div class="faint">${esc(fDate(new Date(m.cree_le)))}</div></div><div class="delta ${cls}">${val}</div></div>`;
+    }).join('') : '<div class="faint">Aucun mouvement.</div>'}</div>
+
+    <div style="margin-top:22px"><button class="btn ghost full" data-act="deconnexion">Se déconnecter</button></div>`;
+}
+/* ---------------------------------------------------------- espace cabinet */
+function vueAdmin(){
+  if (S.vue === 'adherentes') return vueAdminAdherentes();
+  if (S.vue === 'reglages')   return vueAdminReglages();
+  return vueAdminPlanning();
+}
+
+function calendrier(){
+  const an = S.mois.getFullYear(), mo = S.mois.getMonth();
+  const decal = (new Date(an, mo, 1).getDay() + 6) % 7;   // semaine qui commence le lundi
+  const nbJours = new Date(an, mo+1, 0).getDate();
+  const auj = dayKey(new Date());
+
+  const parJour = {};
+  S.creneaux.forEach(c => { const k = dayKey(new Date(c.debut)); (parJour[k] ||= []).push(c); });
+
+  const cases = [];
+  for (let i=0; i<decal; i++) cases.push('<div class="jour vide"></div>');
+  for (let j=1; j<=nbJours; j++){
+    const k = dayKey(new Date(an, mo, j));
+    const liste = (parJour[k] || []).filter(c => c.statut === 'ouvert');
+    const pts = liste.slice(0,4).map(c =>
+      `<i class="pt ${c.places_prises >= c.capacite ? 'plein' : ''}"></i>`).join('');
+    cases.push(`<button class="jour ${k===auj?'auj':''} ${k===S.jourSel?'sel':''}" data-act="jour" data-jour="${k}">
+      <span>${j}</span><span class="pts">${pts}</span></button>`);
+  }
+
+  const nomMois = new Intl.DateTimeFormat('fr-FR',{month:'long', year:'numeric'}).format(S.mois);
+  return `
+    <div class="cal-head">
+      <strong>${esc(nomMois)}</strong>
+      <div class="nav-mois">
+        <button data-act="mois" data-pas="-1" aria-label="Mois précédent">‹</button>
+        <button data-act="mois" data-pas="1" aria-label="Mois suivant">›</button>
+      </div>
+    </div>
+    <div class="cal">
+      ${['lun','mar','mer','jeu','ven','sam','dim'].map(d=>`<div class="dow">${d}</div>`).join('')}
+      ${cases.join('')}
+    </div>
+    <div class="legende">
+      <span><i style="background:var(--accent)"></i> cours avec des places</span>
+      <span><i style="background:var(--warn)"></i> cours complet</span>
+    </div>`;
+}
+
+function panneauJour(){
+  if (!S.jourSel) return `<div class="faint" style="margin-top:18px; text-align:center">
+    Touche un jour du calendrier pour voir ses cours ou en ajouter un.</div>`;
+  const d = dePuisCle(S.jourSel);
+  const liste = S.creneaux
+    .filter(c => dayKey(new Date(c.debut)) === S.jourSel)
+    .sort((a,b) => new Date(a.debut) - new Date(b.debut));
+  return `
+    <div class="day"><strong>${esc(fDay(d))}</strong></div>
+    ${liste.length ? `<div class="stack">${liste.map(c=>carteCreneau(c,true)).join('')}</div>`
+      : '<div class="faint">Aucun cours ce jour-là.</div>'}
+    <div style="margin-top:14px">
+      <button class="btn full" data-act="sheet" data-sheet="nouveau" data-date="${S.jourSel}">
+        + Ajouter un cours le ${esc(fCourt(d))}</button>
+    </div>`;
+}
+
+function vueAdminPlanning(){
+  const futurs = S.creneaux.filter(c => new Date(c.debut) > new Date());
+  const aValider = S.adherentes.filter(a => a.statut === 'en_attente').length;
+  const auj = S.creneaux.filter(c => dayKey(new Date(c.debut)) === dayKey(new Date()) && c.statut === 'ouvert');
+  const cal = S.planningVue === 'calendrier';
+  return `
+    ${aValider ? `<div class="notice info">${aValider} inscription${aValider>1?'s':''} en attente de ta réponse.
+      <button class="linkish" data-act="vue" data-vue="adherentes">Voir</button></div>` : ''}
+    ${bandeauAnnonces()}
+    <div class="row-between" style="margin-bottom:14px">
+      <div><div style="font-weight:700">${auj.length ? `${auj.length} cours aujourd’hui` : 'Pas de cours aujourd’hui'}</div>
+      <div class="faint">${futurs.length} cours à venir</div></div>
+      <button class="btn sm" data-act="sheet" data-sheet="nouveau">+ Ajouter</button>
+    </div>
+    <div class="seg">
+      <button data-act="planning-vue" data-v="calendrier" aria-pressed="${cal}">Calendrier</button>
+      <button data-act="planning-vue" data-v="liste" aria-pressed="${!cal}">Liste</button>
+    </div>
+    ${cal ? calendrier() + panneauJour() : listeParJour(futurs, true)}`;
+}
+function vueAdminAdherentes(){
+  const q = S.recherche.toLowerCase();
+  const liste = S.adherentes.filter(a => !q || (a.nom+' '+a.prenom+' '+a.email+' '+a.telephone).toLowerCase().includes(q));
+  const attente = liste.filter(a=>a.statut==='en_attente');
+  const actives = liste.filter(a=>a.statut==='active');
+  const inactives = liste.filter(a=>a.statut==='inactive');
+  const refusees = liste.filter(a=>a.statut==='refuse');
+  const bloc = (titre, arr) => !arr.length ? '' : `
+    <div class="section-title">${titre} · ${arr.length}</div>
+    <div class="card">${arr.map(ligneAdherente).join('')}</div>`;
+  return `
+    <div class="field"><input id="q" placeholder="Rechercher une adhérente…" value="${esc(S.recherche)}" data-act="recherche"></div>
+    ${attente.length ? '<div class="faint" style="margin-bottom:-4px">Tu décides qui rejoint le cabinet : accepte ou refuse chaque demande.</div>' : ''}
+    ${bloc('Demandes d’inscription', attente)}
+    ${bloc('Adhérentes', actives)}
+    ${bloc('En pause', inactives)}
+    ${bloc('Refusées', refusees)}
+    ${!liste.length ? `<div class="empty">${ICO.users}<div>Aucune adhérente pour l’instant.</div>
+      <div class="faint" style="margin-top:8px">Elles apparaîtront ici dès qu’elles créeront leur compte avec le lien.</div></div>` : ''}`;
+}
+
+function ligneAdherente(a){
+  let actions;
+  if (a.statut === 'en_attente') {
+    actions = `<button class="btn xs" data-act="statut" data-id="${a.id}" data-val="active">Accepter</button>
+               <button class="btn dangerish xs" data-act="refuser" data-id="${a.id}">Refuser</button>`;
+  } else if (a.statut === 'refuse') {
+    actions = `<button class="btn soft xs" data-act="statut" data-id="${a.id}" data-val="active">Accepter finalement</button>`;
+  } else {
+    actions = `<div class="count">${a.credits}</div>
+               <button class="btn soft xs" data-act="sheet" data-sheet="adherente" data-id="${a.id}">Gérer</button>`;
+  }
+  return `<div class="person">
+    <div class="avatar">${esc(initiales(a))}</div>
+    <div class="grow">
+      <div class="name">${esc(a.prenom)} ${esc(a.nom)}</div>
+      <div class="faint">${esc(a.telephone||'—')}${a.role==='admin'?' · cabinet':''}</div>
+    </div>
+    ${actions}
+  </div>`;
+}
+
+function vueAdminReglages(){
+  const lien = location.origin + location.pathname;
+  const auj = dayKey(new Date());
+  return `
+    <div class="section-title">Le lien à donner aux adhérentes</div>
+    <div class="card stack">
+      <div class="share">${esc(lien)}</div>
+      <div class="row">
+        <button class="btn soft grow" data-act="copier" data-lien="${esc(lien)}">Copier le lien</button>
+        <button class="btn grow" data-act="partager" data-lien="${esc(lien)}">Partager</button>
+      </div>
+      <div class="faint">Envoie-le par SMS ou WhatsApp. Chaque adhérente crée son compte, tu acceptes ou refuses sa demande, puis tu lui attribues ses séances.</div>
+    </div>
+
+    <div class="section-title">Annonces affichées aux adhérentes</div>
+    <div class="card">${S.annonces.length ? S.annonces.map(a=>{
+      const active = (!a.debut || a.debut <= auj) && (!a.fin || a.fin >= auj);
+      return `<div class="person">
+        <div class="grow">
+          <div style="font-size:14px; line-height:1.4">${esc(a.texte)}</div>
+          <div class="faint">${esc(periodeAnnonce(a))} · ${a.ton==='important'?'importante':'information'}${active?'':' · pas encore / terminée'}</div>
+        </div>
+        ${active ? '<span class="badge ok">Affichée</span>' : '<span class="badge neutral">Inactive</span>'}
+        <button class="btn dangerish xs" data-act="suppr-annonce" data-id="${a.id}">Retirer</button>
+      </div>`;
+    }).join('') : '<div class="faint">Aucune annonce pour le moment.</div>'}</div>
+
+    <form id="fannonce" class="card" style="margin-top:10px">
+      <div class="field"><label for="an-texte">Nouvelle annonce</label>
+        <textarea id="an-texte" name="texte" placeholder="Ex. : vacances du 07/07 au 07/08, pas de cours durant cette période" required></textarea></div>
+      <div class="fields-2">
+        <div class="field"><label for="an-du">Affichée à partir du (facultatif)</label><input id="an-du" name="debut" type="date"></div>
+        <div class="field"><label for="an-au">Jusqu’au (facultatif)</label><input id="an-au" name="fin" type="date"></div>
+      </div>
+      <div class="field"><label for="an-ton">Ton du message</label>
+        <select id="an-ton" name="ton">
+          <option value="info">Information</option>
+          <option value="important">Important (mise en avant)</option>
+        </select></div>
+      <button class="btn full" type="submit" ${S.busy?'disabled':''}>Publier l’annonce</button>
+      <div class="faint" style="margin-top:10px">Sans dates, l’annonce reste affichée jusqu’à ce que tu la retires.</div>
+    </form>
+
+    <div class="section-title">Réglages du cabinet</div>
+    <form id="freglages" class="card">
+      <div class="field"><label for="r-nom">Nom affiché</label><input id="r-nom" name="nom_cabinet" value="${esc(S.params.nom_cabinet)}" required></div>
+      <div class="field"><label for="r-delai">Annulation sans perdre la séance (heures avant le cours)</label>
+        <input id="r-delai" name="delai" type="number" min="0" max="168" value="${S.params.delai_annulation_h}" required>
+        <div class="faint" style="margin-top:6px">Au-delà de ce délai, une annulation rend la séance. En deçà — ou en cas d’absence — la séance est décomptée.</div></div>
+      <button class="btn full" type="submit" ${S.busy?'disabled':''}>Enregistrer</button>
+    </form>
+
+    <div style="margin-top:22px"><button class="btn ghost full" data-act="deconnexion">Se déconnecter</button></div>`;
+}
+/* ---------------------------------------------------------- feuilles (modales) */
+function feuille(){
+  let titre = '', corps = '';
+  if (S.sheet.type === 'nouveau'){ titre = 'Nouveau cours'; corps = formNouveauCreneau(); }
+  if (S.sheet.type === 'detail'){  const c = S.creneaux.find(x=>x.id===S.sheet.id);
+    titre = c ? `${fDay(new Date(c.debut))} · ${fTime(new Date(c.debut))}` : 'Cours'; corps = detailCreneau(c); }
+  if (S.sheet.type === 'adherente'){ const a = S.adherentes.find(x=>x.id===S.sheet.id);
+    titre = a ? `${a.prenom} ${a.nom}` : 'Adhérente'; corps = detailAdherente(a); }
+  return `<div class="sheet-bg" data-act="fermer-bg"><div class="sheet">
+    <div class="sheet-head"><h2>${esc(titre)}</h2><button class="x" data-act="fermer" aria-label="Fermer">✕</button></div>
+    ${corps}
+  </div></div>`;
+}
+
+function formNouveauCreneau(){
+  const date = S.sheet.date || dayKey(new Date(Date.now()+864e5));
+  return `<form id="fcreneau">
+    <div class="fields-2">
+      <div class="field"><label for="c-date">Date</label><input id="c-date" name="date" type="date" value="${date}" required></div>
+      <div class="field"><label for="c-heure">Heure</label><input id="c-heure" name="heure" type="time" value="18:30" required></div>
+    </div>
+    <div class="fields-2">
+      <div class="field"><label for="c-duree">Durée (min)</label><input id="c-duree" name="duree" type="number" min="15" max="180" value="55" required></div>
+      <div class="field"><label for="c-cap">Places</label><input id="c-cap" name="capacite" type="number" min="1" max="40" value="8" required></div>
+    </div>
+    <div class="field"><label for="c-titre">Intitulé</label><input id="c-titre" name="titre" value="Pilates" required></div>
+    <div class="field"><label for="c-lieu">Lieu (facultatif)</label><input id="c-lieu" name="lieu" placeholder="Cabinet"></div>
+    <div class="field"><label for="c-note">Note affichée sur le cours (facultatif)</label><input id="c-note" name="note" placeholder="Ex. : niveau débutant"></div>
+    <div class="field"><label for="c-rep">Répéter chaque semaine, pendant</label>
+      <select id="c-rep" name="repeter">
+        <option value="1">Une seule fois</option>
+        <option value="4">4 semaines</option>
+        <option value="8">8 semaines</option>
+        <option value="12" selected>12 semaines</option>
+        <option value="26">26 semaines</option>
+        <option value="52">52 semaines</option>
+      </select></div>
+    <button class="btn full" type="submit" ${S.busy?'disabled':''}>Créer</button>
+  </form>`;
+}
+
+function detailCreneau(c){
+  if (!c) return '<div class="faint">Cours introuvable.</div>';
+  const parts = S.sheet.participants;
+  if (!parts) return '<div class="loading">Chargement…</div>';
+  const conf = parts.filter(p=>p.statut==='confirmee');
+  const att  = parts.filter(p=>p.statut==='attente');
+  const libres = Math.max(0, c.capacite - conf.length);
+  const passe = new Date(c.debut) <= new Date();
+  const dispo = S.adherentes.filter(a=>a.statut==='active' && !parts.some(p=>p.adherente_id===a.id));
+
+  const ligne = p => `<div class="person">
+      <div class="avatar">${esc(((p.prenom||' ')[0]+(p.nom||' ')[0]).toUpperCase())}</div>
+      <div class="grow"><div class="name">${esc(p.prenom)} ${esc(p.nom)}</div>
+        <div class="faint">${esc(p.telephone||'')} · ${seances(p.credits)} restante${p.credits>1?'s':''}</div></div>
+      ${passe && p.statut==='confirmee' ? `
+        <button class="btn ${p.presence==='presente'?'':'soft'} xs" data-act="presence" data-id="${p.reservation_id}" data-val="presente">Présente</button>
+        <button class="btn ${p.presence==='absente'?'warnish':'soft'} xs" data-act="presence" data-id="${p.reservation_id}" data-val="absente">Absente</button>`
+      : `<button class="btn soft xs" data-act="retirer" data-id="${p.reservation_id}">Retirer</button>`}
+    </div>`;
+
+  return `
+    <div class="card stack" style="margin-bottom:16px">
+      <div class="row-between"><div><div style="font-weight:700">${esc(c.titre)}</div>
+        <div class="faint">${conf.length}/${c.capacite} inscrites${att.length?` · ${att.length} en attente`:''}${c.lieu?` · ${esc(c.lieu)}`:''}</div></div>
+        ${c.statut==='annule'?'<span class="badge off">Annulé</span>':''}</div>
+      <div class="field" style="margin:0"><label for="d-cap">Nombre de places</label>
+        <div class="row"><input id="d-cap" type="number" min="1" max="40" value="${c.capacite}" style="width:90px">
+        <button class="btn soft sm" data-act="capacite" data-id="${c.id}">Mettre à jour</button></div></div>
+    </div>
+
+    <div class="section-title">Inscrites · ${conf.length}</div>
+    <div class="card">${conf.length ? conf.map(ligne).join('') : '<div class="faint">Personne pour l’instant.</div>'}</div>
+
+    ${att.length ? `<div class="section-title">Liste d’attente · ${att.length}</div>
+      <div class="card">${att.map(ligne).join('')}</div>` : ''}
+
+    ${c.statut==='ouvert' && !passe ? `
+      <div class="section-title">Ajouter quelqu’un</div>
+      <div class="card"><div class="row">
+        <select id="d-add" class="grow"><option value="">Choisir une adhérente…</option>
+          ${dispo.map(a=>`<option value="${a.id}">${esc(a.prenom)} ${esc(a.nom)} — ${seances(a.credits)}</option>`).join('')}</select>
+        <button class="btn sm" data-act="inscrire" data-id="${c.id}">Inscrire</button>
+      </div>
+      <div class="faint" style="margin-top:9px">${libres>0 ? `${libres} place${libres>1?'s':''} libre${libres>1?'s':''} — sinon la personne ira en liste d’attente.` : 'Le cours est complet : la personne ira en liste d’attente.'}</div></div>
+
+      <div style="margin-top:22px"><button class="btn dangerish full" data-act="annuler-cours" data-id="${c.id}">Annuler ce cours et rendre les séances</button></div>` : ''}`;
+}
+
+function detailAdherente(a){
+  if (!a) return '<div class="faint">Introuvable.</div>';
+  return `
+    <div class="card stack" style="align-items:center; text-align:center; margin-bottom:16px">
+      <div style="font-family:Fraunces,serif; font-size:40px; font-weight:600; line-height:1; color:var(--accent)">${a.credits}</div>
+      <div class="muted" style="margin-top:-4px">séance${a.credits>1?'s':''} restante${a.credits>1?'s':''}</div>
+      <div class="faint">Ajoute les séances qu’elle a réglées au cabinet.</div>
+      <div class="row" style="flex-wrap:wrap; justify-content:center">
+        ${[1,5,10].map(n=>`<button class="btn sm" data-act="credits" data-id="${a.id}" data-n="${n}">+${n}</button>`).join('')}
+        <button class="btn soft sm" data-act="credits" data-id="${a.id}" data-n="-1">−1</button>
+      </div>
+      <div class="row" style="width:100%">
+        <input id="ad-n" type="number" placeholder="Autre nombre" class="grow">
+        <button class="btn soft sm" data-act="credits-libre" data-id="${a.id}">Ajouter</button>
+      </div>
+    </div>
+    <div class="card stack">
+      <div class="row-between"><span class="muted">Email</span><span>${esc(a.email)}</span></div>
+      <div class="row-between"><span class="muted">Téléphone</span><span>${esc(a.telephone||'—')}</span></div>
+      <div class="row-between"><span class="muted">Inscrite le</span><span>${esc(fDate(new Date(a.cree_le)))}</span></div>
+    </div>
+    <div style="margin-top:18px" class="stack">
+      ${a.statut==='active'
+        ? `<button class="btn ghost full" data-act="statut" data-id="${a.id}" data-val="inactive">Mettre le compte en pause</button>`
+        : `<button class="btn full" data-act="statut" data-id="${a.id}" data-val="active">Réactiver le compte</button>`}
+    </div>`;
+}
+/* ------------------------------------------------------------------ events */
+document.addEventListener('click', async (e) => {
+  const el = e.target.closest('[data-act]');
+  if (!el) return;
+  const act = el.dataset.act;
+
+  if (act === 'fermer-bg' && e.target !== el) return;
+
+  switch(act){
+    case 'mode': S.authMode = el.dataset.mode; S.notice=null; render(); break;
+    case 'vue': S.vue = el.dataset.vue; S.notice=null; render(); if(S.vue==='compte') chargerMouvements().then(render); if(S.vue==='mes') chargerHistorique().then(render); break;
+    case 'fermer': case 'fermer-bg': S.sheet = null; render(); break;
+    case 'deconnexion': await sb.auth.signOut(); S.session=null; S.profil=null; render(); break;
+    case 'rafraichir': await agir(async()=>{ await chargerProfil(); await chargerCreneaux(); await chargerAnnonces(); }); break;
+
+    case 'planning-vue': S.planningVue = el.dataset.v; render(); break;
+    case 'mois': {
+      const pas = Number(el.dataset.pas);
+      S.mois = new Date(S.mois.getFullYear(), S.mois.getMonth() + pas, 1);
+      render(); break;
+    }
+    case 'jour': S.jourSel = (S.jourSel === el.dataset.jour) ? null : el.dataset.jour; render(); break;
+
+    case 'sheet': {
+      S.sheet = { type: el.dataset.sheet, id: el.dataset.id, date: el.dataset.date }; render();
+      if (S.sheet.type === 'adherente') await chargerAdherentes();
+      render(); break;
+    }
+    case 'detail': await agir(async()=>{
+      S.sheet = { type:'detail', id: el.dataset.id, participants:null };
+      render();
+      const [p] = await Promise.all([ rpc('detail_creneau',{p_creneau: el.dataset.id}), chargerAdherentes() ]);
+      S.sheet.participants = p || [];
+    }); break;
+
+    case 'reserver': await agir(async()=>{
+      const r = await rpc('reserver', { p_creneau: el.dataset.id });
+      await Promise.all([chargerProfil(), chargerCreneaux()]);
+      flash('ok', r.statut === 'confirmee'
+        ? 'C’est réservé. Une séance a été décomptée.'
+        : 'Tu es sur la liste d’attente. Tu auras la place automatiquement si quelqu’un annule.');
+    }); break;
+
+    case 'annuler': {
+      const debut = new Date(el.dataset.debut);
+      const limite = new Date(debut.getTime() - S.params.delai_annulation_h*3600000);
+      const tard = new Date() >= limite;
+      if (!confirm(tard
+        ? `Il reste moins de ${S.params.delai_annulation_h} h avant le cours : la séance sera décomptée quand même. Annuler ?`
+        : 'Annuler cette réservation ? La séance te sera rendue.')) break;
+      await agir(async()=>{
+        const r = await rpc('annuler', { p_reservation: el.dataset.id });
+        await Promise.all([chargerProfil(), chargerCreneaux()]);
+        flash(r.rembourse?'ok':'err', r.rembourse ? 'Réservation annulée, séance rendue.' : 'Réservation annulée — la séance a été décomptée.');
+      }); break;
+    }
+
+    case 'statut': await agir(async()=>{
+      const { error } = await sb.from('adherentes').update({statut: el.dataset.val}).eq('id', el.dataset.id);
+      if (error) throw error;
+      await chargerAdherentes(); if (S.sheet) S.sheet = null;
+      flash('ok', el.dataset.val === 'active' ? 'Inscription acceptée. Pense à lui attribuer ses séances.' : 'Compte mis à jour.');
+    }); break;
+
+    case 'refuser': {
+      if (!confirm('Refuser cette demande d’inscription ? La personne ne pourra pas réserver.')) break;
+      await agir(async()=>{
+        const { error } = await sb.from('adherentes').update({statut:'refuse'}).eq('id', el.dataset.id);
+        if (error) throw error;
+        await chargerAdherentes(); flash('ok','Demande refusée.');
+      }); break;
+    }
+
+    case 'credits': await agir(async()=>{
+      await rpc('admin_ajouter_credits', { p_adherente: el.dataset.id, p_nb: Number(el.dataset.n), p_motif: '' });
+      await Promise.all([chargerAdherentes(), chargerCreneaux()]);
+      flash('ok','Séances mises à jour.');
+    }); break;
+
+    case 'credits-libre': {
+      const n = Number($('#ad-n')?.value || 0);
+      if (!n) { flash('err','Indique un nombre.'); break; }
+      await agir(async()=>{
+        await rpc('admin_ajouter_credits', { p_adherente: el.dataset.id, p_nb: n, p_motif: '' });
+        await Promise.all([chargerAdherentes(), chargerCreneaux()]);
+        flash('ok','Séances mises à jour.');
+      }); break;
+    }
+
+    case 'suppr-annonce': await agir(async()=>{
+      const { error } = await sb.from('annonces').delete().eq('id', el.dataset.id);
+      if (error) throw error;
+      await chargerAnnonces(); flash('ok','Annonce retirée.');
+    }); break;
+    case 'inscrire': {
+      const who = $('#d-add')?.value;
+      if (!who) { flash('err','Choisis une adhérente.'); break; }
+      await agir(async()=>{
+        await rpc('admin_inscrire', { p_creneau: el.dataset.id, p_adherente: who, p_forcer: false });
+        const [p] = await Promise.all([ rpc('detail_creneau',{p_creneau: el.dataset.id}), chargerCreneaux(), chargerAdherentes() ]);
+        S.sheet.participants = p || [];
+        flash('ok','Inscription enregistrée.');
+      }); break;
+    }
+
+    case 'retirer': await agir(async()=>{
+      await rpc('annuler', { p_reservation: el.dataset.id });
+      const [p] = await Promise.all([ rpc('detail_creneau',{p_creneau: S.sheet.id}), chargerCreneaux(), chargerAdherentes() ]);
+      S.sheet.participants = p || [];
+      flash('ok','Retirée du cours, séance rendue.');
+    }); break;
+
+    case 'presence': await agir(async()=>{
+      await rpc('admin_presence', { p_reservation: el.dataset.id, p_presence: el.dataset.val });
+      S.sheet.participants = await rpc('detail_creneau',{p_creneau: S.sheet.id});
+    }); break;
+
+    case 'capacite': {
+      const v = Number($('#d-cap')?.value || 0);
+      if (!v || v < 1) { flash('err','Nombre de places invalide.'); break; }
+      await agir(async()=>{
+        const { error } = await sb.from('creneaux').update({capacite:v}).eq('id', el.dataset.id);
+        if (error) throw error;
+        await chargerCreneaux();
+        S.sheet.participants = await rpc('detail_creneau',{p_creneau: el.dataset.id});
+        flash('ok','Nombre de places mis à jour.');
+      }); break;
+    }
+
+    case 'annuler-cours': {
+      if (!confirm('Annuler ce cours ? Toutes les inscrites seront désinscrites et leur séance rendue.')) break;
+      await agir(async()=>{
+        const r = await rpc('admin_annuler_creneau', { p_creneau: el.dataset.id });
+        await chargerCreneaux(); S.sheet = null;
+        flash('ok', `Cours annulé · ${r.remboursees} séance${r.remboursees>1?'s':''} rendue${r.remboursees>1?'s':''}.`);
+      }); break;
+    }
+
+    case 'copier': try { await navigator.clipboard.writeText(el.dataset.lien); flash('ok','Lien copié.'); } catch { flash('err','Copie impossible — sélectionne le lien à la main.'); } break;
+    case 'partager': if (navigator.share) { try { await navigator.share({title:S.params.nom_cabinet, text:'Réserve tes cours de Pilates ici :', url:el.dataset.lien}); } catch {} } else { try { await navigator.clipboard.writeText(el.dataset.lien); flash('ok','Lien copié.'); } catch {} } break;
+  }
+});
+
+document.addEventListener('input', (e)=>{
+  if (e.target.dataset.act === 'recherche'){ S.recherche = e.target.value; const v = e.target.value; render();
+    const f = $('#q'); if (f){ f.focus(); f.setSelectionRange(v.length, v.length); } }
+});
+document.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const f = e.target;
+  const d = Object.fromEntries(new FormData(f));
+
+  if (f.id === 'fauth') return agir(async()=>{
+    if (S.authMode === 'reset'){
+      const { error } = await sb.auth.resetPasswordForEmail(d.email, { redirectTo: location.origin + location.pathname });
+      if (error) throw error;
+      S.authMode='login'; flash('ok','Si un compte existe, un email vient de partir (pense aux spams).'); return;
+    }
+    if (S.authMode === 'signup'){
+      const { data, error } = await sb.auth.signUp({
+        email:d.email.trim(), password:d.mdp,
+        options:{ data:{ nom:d.nom.trim(), prenom:d.prenom.trim(), telephone:d.telephone.trim() } }
+      });
+      if (error) throw error;
+      if (!data.session){ S.authMode='login'; flash('info','Compte créé. Vérifie ta boîte mail pour confirmer, puis connecte-toi.'); return; }
+      return;
+    }
+    const { error } = await sb.auth.signInWithPassword({ email:d.email.trim(), password:d.mdp });
+    if (error) throw error;
+  });
+
+  if (f.id === 'fprofil') return agir(async()=>{
+    const { error } = await sb.from('adherentes')
+      .update({ prenom:d.prenom.trim(), nom:d.nom.trim(), telephone:d.telephone.trim() })
+      .eq('id', S.profil.id);
+    if (error) throw error;
+    await chargerProfil(); flash('ok','Informations enregistrées.');
+  });
+
+  if (f.id === 'freglages') return agir(async()=>{
+    const { error } = await sb.from('parametres').update({
+      nom_cabinet: d.nom_cabinet.trim(),
+      delai_annulation_h: Number(d.delai)
+    }).eq('id', true);
+    if (error) throw error;
+    await chargerProfil(); flash('ok','Réglages enregistrés.');
+  });
+
+  if (f.id === 'fannonce') return agir(async()=>{
+    const texte = d.texte.trim();
+    if (!texte) throw new Error('Écris le message de l’annonce.');
+    if (d.debut && d.fin && d.fin < d.debut) throw new Error('La date de fin est avant la date de début.');
+    const { error } = await sb.from('annonces').insert({
+      texte, ton: d.ton, debut: d.debut || null, fin: d.fin || null
+    });
+    if (error) throw error;
+    await chargerAnnonces(); flash('ok','Annonce publiée.');
+  });
+
+  if (f.id === 'fcreneau') return agir(async()=>{
+    const base = new Date(`${d.date}T${d.heure}`);
+    if (isNaN(base)) throw new Error('Date invalide.');
+    const n = Number(d.repeter) || 1;
+    const lignes = Array.from({length:n}, (_,i)=>{
+      const dt = new Date(base.getTime()); dt.setDate(dt.getDate() + i*7);
+      return { debut: dt.toISOString(), duree_min:Number(d.duree), capacite:Number(d.capacite),
+               titre:d.titre.trim() || 'Pilates', lieu:(d.lieu||'').trim(), note:(d.note||'').trim() };
+    });
+    const { error } = await sb.from('creneaux').insert(lignes);
+    if (error) throw error;
+    await chargerCreneaux(); S.sheet = null;
+    flash('ok', n>1 ? `${n} cours créés.` : 'Cours créé.');
+  });
+});
+
+/* ------------------------------------------------------------------ boot */
+async function demarrer(session){
+  S.session = session;
+  if (!session){ S.profil = null; render(); return; }
+  render();
+  await chargerProfil();
+  if (!S.profil){ render(); return; }
+  S.vue = estAdmin() ? 'planning' : 'cours';
+  if (S.profil.statut === 'active' || estAdmin()){
+    await Promise.all([chargerCreneaux(), chargerAnnonces()]);
+    if (estAdmin()) await chargerAdherentes(); else await chargerHistorique();
+  }
+  render();
+}
+
+const { data:{ session } } = await sb.auth.getSession();
+await demarrer(session);
+sb.auth.onAuthStateChange(async (evt, s) => {
+  if (evt === 'PASSWORD_RECOVERY'){
+    const mdp = prompt('Choisis un nouveau mot de passe (8 caractères minimum) :');
+    if (mdp && mdp.length >= 8){
+      const { error } = await sb.auth.updateUser({ password: mdp });
+      flash(error ? 'err' : 'ok', error ? messageErreur(error) : 'Mot de passe modifié.');
+    }
+    return demarrer(s);
+  }
+  if (evt === 'SIGNED_IN' && !S.profil) demarrer(s);
+  if (evt === 'SIGNED_OUT'){ S.session=null; S.profil=null; render(); }
+});
+</script>
+</body>
+</html>
