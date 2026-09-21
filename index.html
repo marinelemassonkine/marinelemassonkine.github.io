@@ -523,7 +523,7 @@ function bandeauAnnonces(){
   </div>`).join('');
 }
 
-function carteCreneau(c, admin){
+function carteCreneau(c, admin, avecDate){
   const d = new Date(c.debut);
   const fin = new Date(d.getTime() + c.duree_min*60000);
   const libres = Math.max(0, c.capacite - c.places_prises);
@@ -558,6 +558,7 @@ function carteCreneau(c, admin){
   return `<div class="slot ${mien==='confirmee'?'mine':''} ${annule||passe?'off':''}">
     <div class="time"><b>${fTime(d)}</b><small>${fTime(fin)}</small></div>
     <div class="slot-body">
+      ${avecDate ? `<div style="font-weight:700; color:var(--accent); text-transform:capitalize; margin-bottom:2px">${esc(fDay(d))}</div>` : ''}
       <div class="slot-title">${esc(c.titre)}${c.lieu?` <span class="faint" style="font-weight:400">· ${esc(c.lieu)}</span>`:''}</div>
       <div class="seats"><span class="pips">${pips}</span>
         ${annule ? '—' : `${c.places_prises}/${c.capacite}${libres>0?` · ${libres} place${libres>1?'s':''} libre${libres>1?'s':''}`:''}`}
@@ -611,7 +612,7 @@ function vueMesCours(){
     ${alerteConfirmation()}
     ${alerteCredits()}
     <div class="section-title">Mes prochains cours</div>
-    ${mes.length ? listeParJour(mes, false)
+    ${mes.length ? `<div class="stack">${mes.map(c=>carteCreneau(c,false,true)).join('')}</div>`
       : `<div class="empty">${ICO.empty}<div>Tu n’es inscrite à aucun cours à venir.</div>
          <button class="btn soft sm" style="margin-top:14px" data-act="vue" data-vue="cours">Voir les cours</button></div>`}
     <div class="section-title">Historique</div>
