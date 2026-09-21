@@ -6,6 +6,9 @@
 <meta name="theme-color" content="#1F5148">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Marine Le Masson">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="icon" href="icon-192.png">
 <title>Marine Le Masson · Renforcement musculaire</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -73,6 +76,12 @@ h1,h2,h3{font-family:"Fraunces", ui-serif, Georgia, serif; font-weight:500; marg
 .brand{flex:1; min-width:0}
 .brand h1{font-size:19px; line-height:1.2; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
 .brand .sub{font-size:12.5px; color:var(--ink-faint); letter-spacing:.04em; text-transform:uppercase}
+.cloche{position:relative; width:40px; height:40px; border-radius:999px; border:1px solid var(--line); background:var(--surface); display:grid; place-items:center; color:var(--ink); cursor:pointer; flex:none}
+.cloche svg{width:20px; height:20px; fill:none; stroke:currentColor; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round}
+.cloche b{position:absolute; top:-3px; right:-3px; min-width:18px; height:18px; padding:0 5px; border-radius:999px; background:var(--danger); color:#fff; font-size:11px; line-height:18px; text-align:center}
+.notif{padding:12px 0; border-bottom:1px solid var(--line)} .notif:last-child{border-bottom:0}
+.notif.nonlu .notif-t::before{content:''; display:inline-block; width:8px; height:8px; border-radius:50%; background:var(--accent); margin-right:7px; vertical-align:middle}
+.notif-t{font-weight:700; font-size:14.5px} .notif-c{font-size:14px; line-height:1.45; color:var(--ink-soft); margin-top:2px}
 .credit-pill{
   display:flex; align-items:baseline; gap:5px; flex:none;
   background:var(--accent-soft); color:var(--accent);
@@ -271,7 +280,7 @@ const sb = createClient(SUPABASE_URL, SUPABASE_KEY);
 const aujourdhui = new Date();
 const S = {
   session:null, profil:null, params:null,
-  vue:'cours', creneaux:[], adherentes:[], mouvements:[], historique:[], annonces:[], videos:[],
+  vue:'cours', creneaux:[], adherentes:[], mouvements:[], historique:[], annonces:[], videos:[], notifs:[],
   planningVue:'calendrier',
   mois:new Date(aujourdhui.getFullYear(), aujourdhui.getMonth(), 1),
   jourSel:null,
@@ -328,6 +337,10 @@ async function chargerCreneaux(){
   const { data, error } = await sb.rpc('liste_creneaux', { p_jours: 365 });
   if (error) { flash('err', messageErreur(error)); return; }
   S.creneaux = data || [];
+}
+async function chargerNotifs(){
+  const { data } = await sb.from('notifications').select('*').order('cree_le', { ascending:false }).limit(40);
+  S.notifs = data || [];
 }
 async function chargerVideos(){
   const { data } = await sb.from('videos').select('*').order('cree_le', { ascending:false });
@@ -399,8 +412,9 @@ function coque(){
   <header class="topbar"><div class="wrap topbar-in">
     <div class="brand">
       <h1>${esc(S.params.nom_cabinet)}</h1>
-      <div class="sub">${admin ? `<span class="badge ok">Administratrice</span> ${esc(S.profil.prenom||'')}` : 'Renforcement musculaire des muscles profonds'}</div>
+      <div class="sub">${admin ? `<span class="badge ok">Administratrice</span> ${esc(S.profil.prenom||'')}` : 'Renforcement musculaire'}</div>
     </div>
+    <button class="cloche" data-act="notifs" aria-label="Notifications">${ICO.bell}${S.notifs.some(n=>!n.lu) ? `<b>${S.notifs.filter(n=>!n.lu).length}</b>` : ''}</button>
     ${admin ? '' : `<div class="credit-pill">${S.profil.credits}<span>séance${S.profil.credits>1?'s':''}</span></div>`}
   </div></header>
   <main class="wrap">
@@ -427,6 +441,7 @@ const ICO = {
   user:'<svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-6.5 8-6.5s8 2.5 8 6.5"/></svg>',
   users:'<svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.4"/><path d="M2 20c0-3.6 3.2-5.6 7-5.6s7 2 7 5.6"/><path d="M17 6.5a3.4 3.4 0 0 1 0 6.6M18.5 20c0-2.4-.8-4-2-5"/></svg>',
   gear:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.2"/><path d="M12 2.8v2.4M12 18.8v2.4M4.3 7.4l2 1.2M17.7 15.4l2 1.2M4.3 16.6l2-1.2M17.7 8.6l2-1.2"/></svg>',
+  bell:'<svg viewBox="0 0 24 24"><path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15Z"/><path d="M10 20.5a2 2 0 0 0 4 0"/></svg>',
   play:'<svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M10 9.5v5l4.5-2.5Z"/></svg>',
   leaf:'<svg viewBox="0 0 24 24"><path d="M4 20c0-8 5-15 16-16 1 11-5 16-12 16-2 0-4-.6-4-.6Z"/><path d="M9 20c1-5 4-9 8-11"/></svg>',
   empty:'<svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4M9 16h6"/></svg>'
@@ -483,7 +498,7 @@ function ecranSimple(titre, texte, avecLogo){
 }
 const vueAttenteValidation = () => ecranSimple(
   'Ton compte est créé',
-  'Ta praticienne doit encore accepter ton inscription et t’attribuer tes séances. Tu pourras réserver juste après — n’hésite pas à la prévenir.', true);
+  'Marine doit encore accepter ton inscription et t’attribuer tes séances. Active les notifications ci-dessous pour être prévenue dès que c’est validé.', true) + `<div style="margin-top:12px">${cartePush()}</div>`;
 const vueRefusee = () => ecranSimple(
   'Inscription non retenue',
   'Ta demande d’inscription n’a pas été acceptée. Contacte le cabinet si tu penses qu’il s’agit d’une erreur.', false);
@@ -544,6 +559,8 @@ function carteCreneau(c, admin){
         ${c.nb_attente>0 ? ` · ${c.nb_attente} en attente` : ''}
       </div>
       ${c.note ? `<div class="faint">${esc(c.note)}</div>` : ''}
+      ${!annule && !passe && (S.params.min_participants||0) > 0 && c.places_prises < S.params.min_participants
+        ? `<div class="faint">Minimum ${S.params.min_participants} inscrites, sinon le cours est annulé</div>` : ''}
       ${etat}
     </div>
     ${action ? `<div style="align-self:center">${action}</div>` : ''}
@@ -606,6 +623,9 @@ function vueCompte(){
       ${alerteCredits()}
       <div class="faint">Seule Marine ajoute des séances, selon ce que tu as réglé. Une séance est décomptée dès que tu réserves, et elle t’est rendue si tu annules plus de ${S.params.delai_annulation_h} h avant le cours.</div>
     </div>
+
+    <div class="section-title">Notifications</div>
+    ${cartePush()}
 
     <div class="section-title">Mes informations</div>
     <form id="fprofil" class="card">
@@ -753,6 +773,61 @@ function ligneAdherente(a){
   </div>`;
 }
 
+/* ---------------------------------------------------------- notifications */
+const VAPID_PUBLIC = 'BHUa3lbe0eEhuU30wlaM2Sy1_iZZzKj_lFrRQKrm0grWv2ZL1TjRL6os8kkn2Yr-I8oHUwj_ieCJCHm8ZFCf6Ns';
+function listeNotifs(){
+  return `${cartePush()}
+    <div class="card" style="margin-top:12px">${S.notifs.length ? S.notifs.map(n=>`
+      <div class="notif ${n.lu?'':'nonlu'}"><div class="notif-t">${esc(n.titre)}</div>
+        <div class="notif-c">${esc(n.corps)}</div>
+        <div class="faint" style="margin-top:4px">${esc(fDate(new Date(n.cree_le)))} · ${fTime(new Date(n.cree_le))}</div></div>`).join('')
+      : '<div class="faint">Aucune notification pour le moment.</div>'}</div>`;
+}
+const estIOS = () => /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+const estInstallee = () => window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+function cartePush(){
+  let etat, bouton = '';
+  if (!('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window)) {
+    etat = estIOS() && !estInstallee()
+      ? 'Sur iPhone : touche le bouton Partager <b>⬆︎</b> puis « Sur l’écran d’accueil », ouvre l’appli depuis la nouvelle icône, et reviens ici pour activer les notifications.'
+      : 'Ce navigateur ne permet pas les notifications. Essaie avec Chrome ou Safari à jour.';
+  } else if (Notification.permission === 'denied') {
+    etat = 'Les notifications sont bloquées pour cette appli. Autorise-les dans les réglages de ton téléphone.';
+  } else if (S.pushActif) {
+    etat = 'Les notifications sont activées sur ce téléphone.';
+    bouton = `<button class="btn soft sm" data-act="push-test">M’envoyer un test</button>`;
+  } else {
+    etat = 'Reçois une alerte sur ce téléphone à chaque nouveauté, même appli fermée.';
+    bouton = `<button class="btn sm" data-act="push-on">Activer les notifications</button>`;
+  }
+  return `<div class="card stack"><div style="font-weight:700">Notifications sur ce téléphone</div>
+    <div class="faint" style="line-height:1.5">${etat}</div>${bouton}</div>`;
+}
+async function etatPush(){
+  try {
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
+    const reg = await navigator.serviceWorker.getRegistration();
+    const sub = reg && await reg.pushManager.getSubscription();
+    S.pushActif = !!sub && Notification.permission === 'granted';
+    if (S.pushActif) await enregistrerAbonnement(sub);
+  } catch {}
+}
+function b64ToU8(s){ const p = '='.repeat((4 - s.length % 4) % 4); const b = atob((s + p).replace(/-/g,'+').replace(/_/g,'/')); return Uint8Array.from(b, c=>c.charCodeAt(0)); }
+async function enregistrerAbonnement(sub){
+  const j = sub.toJSON();
+  await sb.from('push_abonnements').upsert({ adherente_id: S.profil.id, endpoint: j.endpoint, p256dh: j.keys.p256dh, auth: j.keys.auth }, { onConflict: 'endpoint' });
+}
+async function activerPush(){
+  const perm = await Notification.requestPermission();
+  if (perm !== 'granted') throw new Error('Notifications refusées. Tu peux les autoriser dans les réglages du téléphone.');
+  const reg = await navigator.serviceWorker.register('sw.js');
+  await navigator.serviceWorker.ready;
+  let sub = await reg.pushManager.getSubscription();
+  if (!sub) sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64ToU8(VAPID_PUBLIC) });
+  await enregistrerAbonnement(sub);
+  S.pushActif = true;
+}
+
 /* ---------------------------------------------------------- vidéos */
 function prochainDimanche20h(){
   const d = new Date(); const j = (7 - d.getDay()) % 7 || 7;
@@ -872,8 +947,18 @@ function vueAdminReglages(){
       <div class="field"><label for="r-delai">Annulation sans perdre la séance (heures avant le cours)</label>
         <input id="r-delai" name="delai" type="number" min="0" max="168" value="${S.params.delai_annulation_h}" required>
         <div class="faint" style="margin-top:6px">Au-delà de ce délai, une annulation rend la séance. En deçà — ou en cas d’absence — la séance est décomptée.</div></div>
+      <div class="fields-2">
+        <div class="field"><label for="r-min">Minimum d’inscrites par cours</label>
+          <input id="r-min" name="min_participants" type="number" min="0" max="50" value="${S.params.min_participants ?? 2}" required></div>
+        <div class="field"><label for="r-dmin">Vérifié … heures avant</label>
+          <input id="r-dmin" name="delai_min" type="number" min="1" max="168" value="${S.params.delai_min_h ?? 24}" required></div>
+      </div>
+      <div class="faint" style="margin:-4px 0 12px">S’il y a moins d’inscrites que ce minimum à ce moment-là, le cours est annulé automatiquement, les crédits sont rendus et tout le monde est prévenu. Mets 0 pour désactiver.</div>
       <button class="btn full" type="submit" ${S.busy?'disabled':''}>Enregistrer</button>
     </form>
+
+    <div class="section-title">Notifications</div>
+    ${cartePush()}
 
     <div style="margin-top:22px"><button class="btn ghost full" data-act="deconnexion">Se déconnecter</button></div>`;
 }
@@ -881,6 +966,7 @@ function vueAdminReglages(){
 function feuille(){
   let titre = '', corps = '';
   if (S.sheet.type === 'nouveau'){ titre = 'Nouveau cours'; corps = formNouveauCreneau(); }
+  if (S.sheet.type === 'notifs'){ titre = 'Notifications'; corps = listeNotifs(); }
   if (S.sheet.type === 'detail'){  const c = S.creneaux.find(x=>x.id===S.sheet.id);
     titre = c ? `${fDay(new Date(c.debut))} · ${fTime(new Date(c.debut))}` : 'Cours'; corps = detailCreneau(c); }
   if (S.sheet.type === 'adherente'){ const a = S.adherentes.find(x=>x.id===S.sheet.id);
@@ -1074,6 +1160,21 @@ document.addEventListener('click', async (e) => {
       }); break;
     }
 
+    case 'notifs': {
+      S.sheet = { type:'notifs' }; render();
+      await chargerNotifs(); render();
+      if (S.notifs.some(n=>!n.lu)) {
+        await sb.from('notifications').update({ lu:true }).eq('lu', false).eq('destinataire', S.profil.id);
+        setTimeout(async()=>{ await chargerNotifs(); render(); }, 2500);
+      }
+      break;
+    }
+    case 'push-on': await agir(async()=>{ await activerPush(); flash('ok','Notifications activées sur ce téléphone.'); }); break;
+    case 'push-test': await agir(async()=>{
+      const reg = await navigator.serviceWorker.ready;
+      await reg.showNotification('Marine Le Masson', { body:'Les notifications fonctionnent sur ce téléphone.', icon:'icon-192.png' });
+    }); break;
+
     case 'refuser': {
       if (!confirm('Refuser cette demande d’inscription ? La personne ne pourra pas réserver.')) break;
       await agir(async()=>{
@@ -1192,7 +1293,9 @@ document.addEventListener('submit', async (e) => {
   if (f.id === 'freglages') return agir(async()=>{
     const { error } = await sb.from('parametres').update({
       nom_cabinet: d.nom_cabinet.trim(),
-      delai_annulation_h: Number(d.delai)
+      delai_annulation_h: Number(d.delai),
+      min_participants: Number(d.min_participants),
+      delai_min_h: Number(d.delai_min)
     }).eq('id', true);
     if (error) throw error;
     await chargerProfil(); flash('ok','Réglages enregistrés.');
@@ -1250,6 +1353,7 @@ async function demarrer(session){
     if (estAdmin()) await chargerAdherentes(); else await chargerHistorique();
     if (estAdmin() || S.profil.acces_videos) await chargerVideos();
   }
+  await Promise.all([chargerNotifs(), etatPush()]);
   render();
 }
 
