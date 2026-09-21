@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#1F5148">
+<meta name="theme-color" content="#1E2A4A">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Marine Le Masson">
 <link rel="manifest" href="manifest.json">
@@ -15,38 +15,41 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=DM+Sans:wght@400;500;700&display=swap">
 <style>
 :root{
-  --bg:#F6F6F2; --surface:#FFFFFF; --surface-2:#F1F2ED;
-  --ink:#17211D; --ink-soft:#5C6B64; --ink-faint:#8B968F;
-  --line:#E2E5DE; --line-strong:#CFD5CC;
-  --accent:#1F5148; --accent-ink:#FFFFFF; --accent-soft:#E7F0EB;
+  --bg:#FBF6F8; --surface:#FFFFFF; --surface-2:#F7EEF2;
+  --ink:#16203A; --ink-soft:#56607A; --ink-faint:#8A90A6;
+  --line:#EFE2E8; --line-strong:#E0CBD5;
+  --accent:#1E2A4A; --accent-ink:#FFFFFF; --accent-soft:#EDF0F7;
+  --rose:#C8386B; --rose-vif:#E8799F; --rose-soft:#FCE6EE;
   --ok:#2C6A4F; --ok-soft:#E3F1E7;
   --warn:#8A5A12; --warn-soft:#FAF0DC;
-  --danger:#9C3A2C; --danger-soft:#FAE7E3;
+  --danger:#B3263E; --danger-soft:#FBE4E8;
   --radius:14px; --radius-sm:9px;
-  --shadow:0 1px 2px rgba(23,33,29,.05), 0 8px 24px -14px rgba(23,33,29,.22);
+  --shadow:0 1px 2px rgba(22,32,58,.05), 0 8px 24px -14px rgba(22,32,58,.25);
   color-scheme:light;
 }
 @media (prefers-color-scheme:dark){
   :root:not([data-theme="light"]){
-    --bg:#111512; --surface:#191E1B; --surface-2:#222825;
-    --ink:#E9EEE9; --ink-soft:#9DAAA3; --ink-faint:#76837C;
-    --line:#2A312D; --line-strong:#3A433D;
-    --accent:#82C5AE; --accent-ink:#0E1614; --accent-soft:#1D2A26;
-    --ok:#82C5AE; --ok-soft:#1B2724;
-    --warn:#DFB264; --warn-soft:#2A2318;
-    --danger:#E0897A; --danger-soft:#2C1D1A;
+    --bg:#0E1326; --surface:#161C33; --surface-2:#1E2542;
+    --ink:#EEF0F7; --ink-soft:#A8AFC7; --ink-faint:#7C84A1;
+    --line:#262E4D; --line-strong:#353F66;
+    --accent:#F29BBC; --accent-ink:#1A1026; --accent-soft:#2A2340;
+    --rose:#F29BBC; --rose-vif:#F29BBC; --rose-soft:#3A2440;
+    --ok:#8FD1B5; --ok-soft:#18292A;
+    --warn:#E8BF72; --warn-soft:#2C2618;
+    --danger:#F08A98; --danger-soft:#331C27;
     --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -14px rgba(0,0,0,.7);
     color-scheme:dark;
   }
 }
 :root[data-theme="dark"]{
-  --bg:#111512; --surface:#191E1B; --surface-2:#222825;
-  --ink:#E9EEE9; --ink-soft:#9DAAA3; --ink-faint:#76837C;
-  --line:#2A312D; --line-strong:#3A433D;
-  --accent:#82C5AE; --accent-ink:#0E1614; --accent-soft:#1D2A26;
-  --ok:#82C5AE; --ok-soft:#1B2724;
-  --warn:#DFB264; --warn-soft:#2A2318;
-  --danger:#E0897A; --danger-soft:#2C1D1A;
+  --bg:#0E1326; --surface:#161C33; --surface-2:#1E2542;
+  --ink:#EEF0F7; --ink-soft:#A8AFC7; --ink-faint:#7C84A1;
+  --line:#262E4D; --line-strong:#353F66;
+  --accent:#F29BBC; --accent-ink:#1A1026; --accent-soft:#2A2340;
+  --rose:#F29BBC; --rose-vif:#F29BBC; --rose-soft:#3A2440;
+  --ok:#8FD1B5; --ok-soft:#18292A;
+  --warn:#E8BF72; --warn-soft:#2C2618;
+  --danger:#F08A98; --danger-soft:#331C27;
   color-scheme:dark;
 }
 
@@ -70,7 +73,7 @@ h1,h2,h3{font-family:"Fraunces", ui-serif, Georgia, serif; font-weight:500; marg
   position:sticky; top:env(safe-area-inset-top,0px); z-index:20;
   background:color-mix(in srgb, var(--bg) 88%, transparent);
   backdrop-filter:blur(10px);
-  border-bottom:1px solid var(--line);
+  border-bottom:2px solid var(--rose-soft);
 }
 .topbar-in{display:flex; align-items:center; gap:12px; padding-block:12px; min-height:60px}
 .brand{flex:1; min-width:0}
@@ -80,11 +83,11 @@ h1,h2,h3{font-family:"Fraunces", ui-serif, Georgia, serif; font-weight:500; marg
 .cloche svg{width:20px; height:20px; fill:none; stroke:currentColor; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round}
 .cloche b{position:absolute; top:-3px; right:-3px; min-width:18px; height:18px; padding:0 5px; border-radius:999px; background:var(--danger); color:#fff; font-size:11px; line-height:18px; text-align:center}
 .notif{padding:12px 0; border-bottom:1px solid var(--line)} .notif:last-child{border-bottom:0}
-.notif.nonlu .notif-t::before{content:''; display:inline-block; width:8px; height:8px; border-radius:50%; background:var(--accent); margin-right:7px; vertical-align:middle}
+.notif.nonlu .notif-t::before{content:''; display:inline-block; width:8px; height:8px; border-radius:50%; background:var(--rose-vif); margin-right:7px; vertical-align:middle}
 .notif-t{font-weight:700; font-size:14.5px} .notif-c{font-size:14px; line-height:1.45; color:var(--ink-soft); margin-top:2px}
 .credit-pill{
   display:flex; align-items:baseline; gap:5px; flex:none;
-  background:var(--accent-soft); color:var(--accent);
+  background:var(--rose-soft); color:var(--rose);
   padding:7px 12px; border-radius:999px; font-weight:700; font-size:15px;
   font-variant-numeric:tabular-nums;
 }
@@ -107,7 +110,7 @@ h1,h2,h3{font-family:"Fraunces", ui-serif, Georgia, serif; font-weight:500; marg
   border-top:2px solid transparent; margin-top:-1px;
 }
 .tab svg{width:21px; height:21px; stroke:currentColor; fill:none; stroke-width:1.6; stroke-linecap:round; stroke-linejoin:round}
-.tab[aria-current="page"]{color:var(--accent); border-top-color:var(--accent)}
+.tab[aria-current="page"]{color:var(--accent); border-top-color:var(--rose-vif)}
 /* ---------- blocks ---------- */
 main{padding-block:20px 8px; min-height:60vh}
 .section-title{font-size:12px; text-transform:uppercase; letter-spacing:.08em; color:var(--ink-faint); font-weight:700; margin:26px 0 10px}
@@ -147,7 +150,7 @@ main{padding-block:20px 8px; min-height:60vh}
 
 .seats{display:flex; align-items:center; gap:7px; font-size:13px; color:var(--ink-soft)}
 .pips{display:flex; gap:3px}
-.pip{width:7px; height:7px; border-radius:2px; background:var(--accent); opacity:.85}
+.pip{width:7px; height:7px; border-radius:2px; background:var(--rose-vif); opacity:.95}
 .pip.free{background:var(--line-strong); opacity:1}
 
 .badge{display:inline-flex; align-items:center; gap:5px; align-self:flex-start; font-size:12px; font-weight:700; padding:3px 9px; border-radius:999px; letter-spacing:.01em}
@@ -176,7 +179,7 @@ main{padding-block:20px 8px; min-height:60vh}
 .jour.auj{border-color:var(--accent); font-weight:700}
 .jour.sel{background:var(--accent); color:var(--accent-ink); border-color:var(--accent); font-weight:700}
 .jour .pts{display:flex; gap:2px; height:5px}
-.jour .pt{width:5px; height:5px; border-radius:50%; background:var(--accent)}
+.jour .pt{width:5px; height:5px; border-radius:50%; background:var(--rose-vif)}
 .jour .pt.plein{background:var(--warn)}
 .jour.sel .pt{background:var(--accent-ink); opacity:.5}
 .jour.sel .pt.plein{opacity:1}
@@ -230,15 +233,15 @@ textarea{resize:vertical; min-height:64px}
 .auth-head{text-align:center; margin-bottom:26px}
 .auth-head h1{font-size:28px; margin-bottom:7px}
 .auth-head p{margin:0; color:var(--ink-soft); font-size:14.5px}
-.mark{width:46px; height:46px; margin:0 auto 16px; border-radius:50%; background:var(--accent-soft); display:grid; place-items:center}
-.mark svg{width:24px; height:24px; stroke:var(--accent); fill:none; stroke-width:1.5; stroke-linecap:round}
+.mark{width:46px; height:46px; margin:0 auto 16px; border-radius:50%; background:var(--rose-soft); display:grid; place-items:center}
+.mark svg{width:24px; height:24px; stroke:var(--rose); fill:none; stroke-width:1.5; stroke-linecap:round}
 .switch{text-align:center; margin-top:16px; font-size:14px; color:var(--ink-soft)}
 .linkish{background:none; border:0; color:var(--accent); font-weight:700; cursor:pointer; font-size:14px; padding:2px 4px; text-decoration:underline; text-underline-offset:2px}
 
 /* person row */
 .person{display:flex; align-items:center; gap:11px; padding:12px 0; border-bottom:1px solid var(--line); flex-wrap:wrap}
 .person:last-child{border-bottom:0}
-.avatar{flex:none; width:36px; height:36px; border-radius:50%; background:var(--accent-soft); color:var(--accent); display:grid; place-items:center; font-weight:700; font-size:13px}
+.avatar{flex:none; width:36px; height:36px; border-radius:50%; background:var(--rose-soft); color:var(--rose); display:grid; place-items:center; font-weight:700; font-size:13px}
 .name{font-weight:700; font-size:14.5px}
 .count{flex:none; font-variant-numeric:tabular-nums; font-weight:700; font-size:14px; color:var(--ink)}
 
@@ -487,7 +490,7 @@ function coque(){
   <header class="topbar"><div class="wrap topbar-in">
     <div class="brand">
       <h1>${esc(S.params.nom_cabinet)}</h1>
-      <div class="sub">${admin ? `<span class="badge ok">Administratrice</span> ${esc(S.profil.prenom||'')}` : 'Renforcement musculaire'}</div>
+      <div class="sub">${admin ? `<span class="badge" style="background:var(--rose-soft); color:var(--rose)">Administratrice</span> ${esc(S.profil.prenom||'')}` : 'Renforcement musculaire'}</div>
     </div>
     <button class="cloche" data-act="notifs" aria-label="Notifications">${ICO.bell}${S.notifs.some(n=>!n.lu) ? `<b>${S.notifs.filter(n=>!n.lu).length}</b>` : ''}</button>
     ${admin ? '' : `<div class="credit-pill">${S.profil.credits}<span>séance${S.profil.credits>1?'s':''}</span></div>`}
@@ -632,7 +635,7 @@ function carteCreneau(c, admin, avecDate){
   return `<div class="slot ${mien==='confirmee'?'mine':''} ${annule||passe?'off':''}">
     <div class="time"><b>${fTime(d)}</b><small>${fTime(fin)}</small></div>
     <div class="slot-body">
-      ${avecDate ? `<div style="font-weight:700; color:var(--accent); text-transform:capitalize; margin-bottom:2px">${esc(fDay(d))}</div>` : ''}
+      ${avecDate ? `<div style="font-weight:700; color:var(--rose); text-transform:capitalize; margin-bottom:2px">${esc(fDay(d))}</div>` : ''}
       <div class="slot-title">${esc(c.titre)}${c.lieu?` <span class="faint" style="font-weight:400">· ${esc(c.lieu)}</span>`:''}</div>
       <div class="seats"><span class="pips">${pips}</span>
         ${annule ? '—' : `${c.places_prises}/${c.capacite}${libres>0?` · ${libres} place${libres>1?'s':''} libre${libres>1?'s':''}`:''}`}
@@ -784,7 +787,7 @@ function calendrier(){
       ${cases.join('')}
     </div>
     <div class="legende">
-      <span><i style="background:var(--accent)"></i> cours avec des places</span>
+      <span><i style="background:var(--rose-vif)"></i> cours avec des places</span>
       <span><i style="background:var(--warn)"></i> cours complet</span>
     </div>`;
 }
