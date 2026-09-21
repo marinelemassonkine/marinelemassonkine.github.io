@@ -1058,6 +1058,12 @@ function vueAdminReglages(){
         <input type="checkbox" name="rappel_veille" ${S.params.rappel_veille === false ? '' : 'checked'} style="width:20px; height:20px; margin-top:2px; flex:none">
         <span><b>Rappel la veille du cours</b><br><span class="faint">Chaque inscrite reçoit un rappel de son cours, avec l’heure limite pour annuler et récupérer sa séance.</span></span>
       </label>
+      <label class="row" style="gap:10px; align-items:flex-start; margin:0 0 8px; cursor:pointer">
+        <input type="checkbox" name="relance_inactives" ${S.params.relance_inactives === false ? '' : 'checked'} style="width:20px; height:20px; margin-top:2px; flex:none">
+        <span><b>Relancer les adhérentes qui ne viennent plus</b><br><span class="faint">Le mercredi à 12 h, un petit message « Tu nous manques ! » avec les prochains cours, aux adhérentes sans réservation depuis :</span></span>
+      </label>
+      <div class="field" style="margin:0 0 14px 30px"><select name="relance_jours" style="width:auto">
+        ${[7,14,21,30].map(j=>`<option value="${j}" ${(S.params.relance_jours||14)===j?'selected':''}>${j} jours</option>`).join('')}</select></div>
       <button class="btn full" type="submit" ${S.busy?'disabled':''}>Enregistrer</button>
     </form>
 
@@ -1499,7 +1505,9 @@ document.addEventListener('submit', async (e) => {
       min_participants: Number(d.min_participants),
       delai_min_h: Number(d.delai_min),
       rappel_hebdo: d.rappel_hebdo === 'on',
-      rappel_veille: d.rappel_veille === 'on'
+      rappel_veille: d.rappel_veille === 'on',
+      relance_inactives: d.relance_inactives === 'on',
+      relance_jours: Number(d.relance_jours || 14)
     }).eq('id', true);
     if (error) throw error;
     await chargerProfil(); flash('ok','Réglages enregistrés.');
