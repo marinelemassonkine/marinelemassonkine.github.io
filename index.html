@@ -308,6 +308,7 @@ const ERREURS = {
   creneau_passe:"Ce cours est déjà passé.",
   deja_inscrite:"Tu es déjà inscrite à ce cours.",
   credits_insuffisants:"Il ne te reste plus aucun crédit séance. Contacte Marine pour en rajouter.",
+  credits_insuffisants_adherente:"Cette adhérente n’a plus de crédit séance. Ajoute-lui des séances d’abord (onglet Adhérentes).",
   reservation_introuvable:"Réservation introuvable.",
   non_autorisee:"Action non autorisée.",
   adherente_introuvable:"Adhérente introuvable.",
@@ -536,7 +537,7 @@ function carteCreneau(c, admin){
   let etat;
   if (annule) etat = '<span class="badge off">Cours annulé</span>';
   else if (mien === 'confirmee') etat = '<span class="badge ok">Ta place est réservée</span>';
-  else if (mien === 'attente') etat = `<span class="badge wait">Liste d’attente · ${c.ma_position}${c.ma_position===1?'re':'e'}</span>`;
+  else if (mien === 'attente') etat = `<span class="badge wait">Liste d’attente · réponse de Marine à venir</span>`;
   else if (libres === 0) etat = '<span class="badge neutral">Complet</span>';
   else etat = '';
 
@@ -1021,7 +1022,10 @@ function detailCreneau(c){
       ${passe && p.statut==='confirmee' ? `
         <button class="btn ${p.presence==='presente'?'':'soft'} xs" data-act="presence" data-id="${p.reservation_id}" data-val="presente">Présente</button>
         <button class="btn ${p.presence==='absente'?'warnish':'soft'} xs" data-act="presence" data-id="${p.reservation_id}" data-val="absente">Absente</button>`
-      : `<button class="btn soft xs" data-act="retirer" data-id="${p.reservation_id}">Retirer</button>`}
+      : p.statut==='attente'
+        ? `<button class="btn xs" data-act="accepter-attente" data-id="${p.reservation_id}">Ajouter</button>
+           <button class="btn dangerish xs" data-act="refuser-attente" data-id="${p.reservation_id}">Refuser</button>`
+        : `<button class="btn soft xs" data-act="retirer" data-id="${p.reservation_id}">Retirer</button>`}
     </div>`;
 
   return `
@@ -1038,6 +1042,7 @@ function detailCreneau(c){
     <div class="card">${conf.length ? conf.map(ligne).join('') : '<div class="faint">Personne pour l’instant.</div>'}</div>
 
     ${att.length ? `<div class="section-title">Liste d’attente · ${att.length}</div>
+      <div class="faint" style="margin:-4px 0 10px">C’est toi qui décides : « Ajouter » l’inscrit au cours (même s’il est complet) et décompte une séance, « Refuser » la prévient sans rien décompter.</div>
       <div class="card">${att.map(ligne).join('')}</div>` : ''}
 
     ${c.statut==='ouvert' && !passe ? `
@@ -1120,7 +1125,7 @@ document.addEventListener('click', async (e) => {
       await Promise.all([chargerProfil(), chargerCreneaux()]);
       flash('ok', r.statut === 'confirmee'
         ? `C’est réservé ! 1 crédit séance décompté, il t’en reste ${S.profil.credits}.`
-        : 'Tu es sur la liste d’attente. Tu auras la place automatiquement si quelqu’un annule.');
+        : 'Le cours est complet : tu es en liste d’attente. Marine est prévenue et te dira si elle peut t’ajouter. Aucune séance décomptée pour l’instant.');
     }); break;
 
     case 'annuler': {
@@ -1222,6 +1227,27 @@ document.addEventListener('click', async (e) => {
       S.sheet.participants = p || [];
       flash('ok','Retirée du cours, séance rendue.');
     }); break;
+
+    case 'accepter-attente': {
+      const c = S.creneaux.find(x=>x.id===S.sheet.id);
+      const nbConf = (S.sheet.participants||[]).filter(p=>p.statut==='confirmee').length;
+      if (c && nbConf >= c.capacite && !confirm(`Le cours est complet (${nbConf}/${c.capacite}). L’ajouter quand même en plus ?`)) break;
+      await agir(async()=>{
+        await rpc('admin_accepter_attente', { p_reservation: el.dataset.id });
+        const [p] = await Promise.all([ rpc('detail_creneau',{p_creneau: S.sheet.id}), chargerCreneaux(), chargerAdherentes() ]);
+        S.sheet.participants = p || [];
+        flash('ok','Ajoutée au cours. Elle est prévenue et une séance a été décomptée.');
+      }); break;
+    }
+    case 'refuser-attente': {
+      if (!confirm('Refuser cette demande ? La personne sera prévenue, aucune séance décomptée.')) break;
+      await agir(async()=>{
+        await rpc('admin_refuser_attente', { p_reservation: el.dataset.id });
+        const [p] = await Promise.all([ rpc('detail_creneau',{p_creneau: S.sheet.id}), chargerCreneaux() ]);
+        S.sheet.participants = p || [];
+        flash('ok','Demande refusée. La personne est prévenue.');
+      }); break;
+    }
 
     case 'presence': await agir(async()=>{
       await rpc('admin_presence', { p_reservation: el.dataset.id, p_presence: el.dataset.val });
