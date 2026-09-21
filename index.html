@@ -441,6 +441,9 @@ async function chargerAdherentes(){
   const { data } = await sb.from('adherentes').select('*').order('statut').order('nom');
   S.adherentes = data || [];
   await chargerLots();
+  if (S.sheet && S.sheet.type === 'adherente' && S.sheet.histo) {
+    try { S.sheet.histo = await rpc('admin_historique', { p_adh: S.sheet.id }); } catch {}
+  }
 }
 const estAdmin = () => S.profil && S.profil.role === 'admin';
 
@@ -1169,6 +1172,36 @@ function detailCreneau(c){
       <div style="margin-top:22px"><button class="btn dangerish full" data-act="annuler-cours" data-id="${c.id}">Annuler ce cours et rendre les séances</button></div>` : ''}`;
 }
 
+const ETATS = {
+  venue:['Venue','ok',''], reserve:['Réservé','ok',''], a_confirmer:['À confirmer','wait',''],
+  annule_temps:['Annulé à temps','neutral','séance rendue'], annule_tard:['Annulé tard','off','séance perdue'],
+  absente:['Absente','off','séance perdue'], attente:['En attente','wait',''],
+  attente_retiree:['Sortie de l’attente','neutral',''], cours_annule:['Cours annulé','neutral','annulé par Marine · séance rendue']
+};
+function blocHistorique(){
+  const h = S.sheet && S.sheet.histo;
+  if (!h) return '<div class="section-title">Historique</div><div class="loading">Chargement…</div>';
+  const s = h.stats, onglet = S.sheet.hOnglet || 'cours';
+  const tuile = (n, l) => `<div class="card" style="padding:10px; text-align:center; margin:0"><div style="font-family:Fraunces,serif; font-size:24px; font-weight:600; color:var(--accent)">${n}</div><div class="faint" style="font-size:12px">${l}</div></div>`;
+  const cours = h.cours.length ? h.cours.map(c => { const [lib, cls, note] = ETATS[c.etat] || [c.etat,'neutral',''], d = new Date(c.debut);
+      return `<div class="hist"><div class="grow"><span style="text-transform:capitalize">${esc(fDay(d))}</span> · ${fTime(d)}
+        <div class="faint">Réservé le ${esc(fCourt(new Date(c.reserve_le)))}${note ? ' · '+note : ''}</div></div><span class="badge ${cls}" style="flex:none">${lib}</span></div>`; }).join('')
+    : '<div class="faint">Aucun cours pour l’instant.</div>';
+  const mouv = h.mouvements.length ? h.mouvements.map(m => {
+      const cls = m.delta>0?'plus':m.delta<0?'minus':'zero', val = m.delta>0?`+${m.delta}`:m.delta<0?`${m.delta}`:'0';
+      return `<div class="hist"><div class="grow">${esc(m.motif)}<div class="faint">${esc(fDate(new Date(m.le)))} · ${fTime(new Date(m.le))}</div></div><div class="delta ${cls}">${val}</div></div>`; }).join('')
+    : '<div class="faint">Aucun mouvement.</div>';
+  return `<div class="section-title">Historique</div>
+    <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-bottom:10px">
+      ${tuile(s.venue,'venue'+(s.venue>1?'s':''))}${tuile(s.reserve,'à venir')}${tuile(s.annule_temps,'annulé à temps')}
+      ${tuile(s.annule_tard,'annulé hors délai')}${tuile(s.absente,'absence'+(s.absente>1?'s':''))}${tuile(s.attente,'en attente')}
+    </div>
+    <div style="display:flex; gap:6px; margin-bottom:10px">
+      <button class="btn ${onglet==='cours'?'':'soft'} sm grow" data-act="h-onglet" data-v="cours">Cours (${h.cours.length})</button>
+      <button class="btn ${onglet==='seances'?'':'soft'} sm grow" data-act="h-onglet" data-v="seances">Séances (${h.mouvements.length})</button>
+    </div>
+    <div class="card">${onglet==='cours' ? cours : mouv}</div>`;
+}
 function detailAdherente(a){
   if (!a) return '<div class="faint">Introuvable.</div>';
   return `
@@ -1199,6 +1232,7 @@ function detailAdherente(a){
       <div class="row-between"><span class="muted">Téléphone</span><span>${esc(a.telephone||'—')}</span></div>
       <div class="row-between"><span class="muted">Inscrite le</span><span>${esc(fDate(new Date(a.cree_le)))}</span></div>
     </div>
+    ${blocHistorique()}
     <div style="margin-top:18px" class="stack">
       ${a.statut==='active'
         ? `<button class="btn ghost full" data-act="statut" data-id="${a.id}" data-val="inactive">Mettre le compte en pause</button>`
@@ -1230,7 +1264,10 @@ document.addEventListener('click', async (e) => {
 
     case 'sheet': {
       S.sheet = { type: el.dataset.sheet, id: el.dataset.id, date: el.dataset.date }; render();
-      if (S.sheet.type === 'adherente') await chargerAdherentes();
+      if (S.sheet.type === 'adherente') {
+        const [, h] = await Promise.all([chargerAdherentes(), rpc('admin_historique', { p_adh: el.dataset.id }).catch(()=>null)]);
+        if (S.sheet) S.sheet.histo = h || { stats:{venue:0,reserve:0,annule_temps:0,annule_tard:0,absente:0,attente:0}, cours:[], mouvements:[] };
+      }
       render(); break;
     }
     case 'detail': await agir(async()=>{
@@ -1326,6 +1363,7 @@ document.addEventListener('click', async (e) => {
         flash('ok','Séances retirées.');
       }); break;
     }
+    case 'h-onglet': if (S.sheet) { S.sheet.hOnglet = el.dataset.v; render(); } break;
     case 'suppr-lot': {
       if (!confirm('Retirer ces séances du compte de la cliente ?')) break;
       await agir(async()=>{
