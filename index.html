@@ -1050,6 +1050,10 @@ function vueAdminReglages(){
           <input id="r-dmin" name="delai_min" type="number" min="1" max="168" value="${S.params.delai_min_h ?? 24}" required></div>
       </div>
       <div class="faint" style="margin:-4px 0 12px">S’il y a moins d’inscrites que ce minimum à ce moment-là, le cours est annulé automatiquement, les crédits sont rendus et tout le monde est prévenu. Mets 0 pour désactiver.</div>
+      <label class="row" style="gap:10px; align-items:flex-start; margin:0 0 14px; cursor:pointer">
+        <input type="checkbox" name="rappel_hebdo" ${S.params.rappel_hebdo === false ? '' : 'checked'} style="width:20px; height:20px; margin-top:2px; flex:none">
+        <span><b>Rappel chaque dimanche à 18 h</b><br><span class="faint">Chaque adhérente reçoit les places restantes des cours de la semaine, pour l’inciter à réserver vite.</span></span>
+      </label>
       <button class="btn full" type="submit" ${S.busy?'disabled':''}>Enregistrer</button>
     </form>
 
@@ -1489,7 +1493,8 @@ document.addEventListener('submit', async (e) => {
       nom_cabinet: d.nom_cabinet.trim(),
       delai_annulation_h: Number(d.delai),
       min_participants: Number(d.min_participants),
-      delai_min_h: Number(d.delai_min)
+      delai_min_h: Number(d.delai_min),
+      rappel_hebdo: d.rappel_hebdo === 'on'
     }).eq('id', true);
     if (error) throw error;
     await chargerProfil(); flash('ok','Réglages enregistrés.');
