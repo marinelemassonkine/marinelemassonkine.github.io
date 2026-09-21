@@ -536,8 +536,9 @@ function carteCreneau(c, admin){
 
   let etat;
   if (annule) etat = '<span class="badge off">Cours annulé</span>';
+  else if (mien === 'confirmee' && c.a_confirmer) etat = '<span class="badge wait">Place libérée pour toi · à confirmer</span>';
   else if (mien === 'confirmee') etat = '<span class="badge ok">Ta place est réservée</span>';
-  else if (mien === 'attente') etat = `<span class="badge wait">Liste d’attente · réponse de Marine à venir</span>`;
+  else if (mien === 'attente') etat = `<span class="badge wait">Liste d’attente · ${c.ma_position}${c.ma_position===1?'re':'e'}</span>`;
   else if (libres === 0) etat = '<span class="badge neutral">Complet</span>';
   else etat = '';
 
@@ -545,7 +546,10 @@ function carteCreneau(c, admin){
   if (admin) {
     action = `<button class="btn soft sm" data-act="detail" data-id="${c.id}">Voir le cours</button>`;
   } else if (!annule && !passe) {
-    if (mien) action = `<button class="btn dangerish sm" data-act="annuler" data-id="${c.ma_reservation_id}" data-debut="${c.debut}">Annuler</button>`;
+    if (mien === 'confirmee' && c.a_confirmer) action = `<div class="stack" style="gap:6px">
+        <button class="btn sm" data-act="confirmer-place" data-id="${c.ma_reservation_id}">Je confirme</button>
+        <button class="btn dangerish sm" data-act="refuser-place" data-id="${c.ma_reservation_id}">Je libère</button></div>`;
+    else if (mien) action = `<button class="btn dangerish sm" data-act="annuler" data-id="${c.ma_reservation_id}" data-debut="${c.debut}">Annuler</button>`;
     else if (S.profil.credits < 1) action = `<button class="btn soft sm" disabled title="Plus de crédit séance">Plus de crédit</button>`;
     else if (libres > 0) action = `<button class="btn sm" data-act="reserver" data-id="${c.id}">Réserver</button>`;
     else action = `<button class="btn warnish sm" data-act="reserver" data-id="${c.id}">Liste d’attente</button>`;
@@ -586,8 +590,13 @@ function vueCoursDispo(){
   const futurs = S.creneaux.filter(c => new Date(c.debut) > new Date());
   return `
     ${bandeauAnnonces()}
+    ${alerteConfirmation()}
     ${alerteCredits()}
     ${listeParJour(futurs, false)}`;
+}
+function alerteConfirmation(){
+  const a = S.creneaux.filter(c => c.mon_statut === 'confirmee' && c.a_confirmer && new Date(c.debut) > new Date());
+  return a.map(c => `<div class="notice warn">Une place s’est libérée pour toi au cours du ${esc(fDay(new Date(c.debut)))} à ${fTime(new Date(c.debut))}. Confirme ta présence ou libère la place ci-dessous.</div>`).join('');
 }
 function alerteCredits(){
   const n = S.profil.credits;
@@ -599,6 +608,7 @@ function vueMesCours(){
   const mes = S.creneaux.filter(c => c.mon_statut && new Date(c.debut) > new Date() && c.statut==='ouvert');
   const passes = S.historique.filter(r => r.creneaux && new Date(r.creneaux.debut) <= new Date());
   return `
+    ${alerteConfirmation()}
     ${alerteCredits()}
     <div class="section-title">Mes prochains cours</div>
     ${mes.length ? `<div class="stack">${mes.map(c=>carteCreneau(c,false)).join('')}</div>`
@@ -1018,7 +1028,7 @@ function detailCreneau(c){
   const ligne = p => `<div class="person">
       <div class="avatar">${esc(((p.prenom||' ')[0]+(p.nom||' ')[0]).toUpperCase())}</div>
       <div class="grow"><div class="name">${esc(p.prenom)} ${esc(p.nom)}</div>
-        <div class="faint">${esc(p.telephone||'')} · ${seances(p.credits)} restante${p.credits>1?'s':''}</div></div>
+        <div class="faint">${esc(p.telephone||'')} · ${seances(p.credits)} restante${p.credits>1?'s':''}${p.a_confirmer?' · <b>doit confirmer</b>':''}</div></div>
       ${passe && p.statut==='confirmee' ? `
         <button class="btn ${p.presence==='presente'?'':'soft'} xs" data-act="presence" data-id="${p.reservation_id}" data-val="presente">Présente</button>
         <button class="btn ${p.presence==='absente'?'warnish':'soft'} xs" data-act="presence" data-id="${p.reservation_id}" data-val="absente">Absente</button>`
@@ -1042,7 +1052,7 @@ function detailCreneau(c){
     <div class="card">${conf.length ? conf.map(ligne).join('') : '<div class="faint">Personne pour l’instant.</div>'}</div>
 
     ${att.length ? `<div class="section-title">Liste d’attente · ${att.length}</div>
-      <div class="faint" style="margin:-4px 0 10px">C’est toi qui décides : « Ajouter » l’inscrit au cours (même s’il est complet) et décompte une séance, « Refuser » la prévient sans rien décompter.</div>
+      <div class="faint" style="margin:-4px 0 10px">« Ajouter » l’inscrit tout de suite, même si le cours est complet (une séance est décomptée). Sinon, la première de la liste récupère automatiquement la prochaine place libérée et doit confirmer sa présence.</div>
       <div class="card">${att.map(ligne).join('')}</div>` : ''}
 
     ${c.statut==='ouvert' && !passe ? `
@@ -1125,7 +1135,7 @@ document.addEventListener('click', async (e) => {
       await Promise.all([chargerProfil(), chargerCreneaux()]);
       flash('ok', r.statut === 'confirmee'
         ? `C’est réservé ! 1 crédit séance décompté, il t’en reste ${S.profil.credits}.`
-        : 'Le cours est complet : tu es en liste d’attente. Marine est prévenue et te dira si elle peut t’ajouter. Aucune séance décomptée pour l’instant.');
+        : 'Le cours est complet : tu es en liste d’attente. Si une place se libère, tu seras inscrite automatiquement et prévenue. Aucune séance décomptée pour l’instant.');
     }); break;
 
     case 'annuler': {
@@ -1227,6 +1237,19 @@ document.addEventListener('click', async (e) => {
       S.sheet.participants = p || [];
       flash('ok','Retirée du cours, séance rendue.');
     }); break;
+
+    case 'confirmer-place': await agir(async()=>{
+      await rpc('confirmer_place', { p_reservation: el.dataset.id });
+      await chargerCreneaux(); flash('ok','Merci ! Ta présence est confirmée.');
+    }); break;
+    case 'refuser-place': {
+      if (!confirm('Libérer cette place ? Ton crédit séance te sera rendu et la place ira à la personne suivante.')) break;
+      await agir(async()=>{
+        await rpc('refuser_place', { p_reservation: el.dataset.id });
+        await Promise.all([chargerProfil(), chargerCreneaux()]);
+        flash('ok', `Place libérée, crédit séance rendu. Il t’en reste ${S.profil.credits}.`);
+      }); break;
+    }
 
     case 'accepter-attente': {
       const c = S.creneaux.find(x=>x.id===S.sheet.id);
