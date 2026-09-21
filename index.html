@@ -434,6 +434,7 @@ function vueAuth(){
       <p>${oubli ? 'On t’envoie un lien pour choisir un nouveau mot de passe.'
           : inscription ? 'Quelques informations et ta praticienne validera ton inscription.'
           : 'Connecte-toi pour réserver tes cours de Pilates.'}</p>
+      ${(oubli||inscription) ? '' : `<p class="auth-sous" style="font-size:13px;opacity:.75;margin-top:6px;line-height:1.45">Renforcement musculaire des muscles profonds<br>avec Marine Le Masson, kiné spécialisée en rééducation pelvi-périnéale</p>`}
     </div>
     ${S.notice ? `<div class="notice ${S.notice.type}">${esc(S.notice.texte)}</div>` : ''}
     <form id="fauth" class="card">
