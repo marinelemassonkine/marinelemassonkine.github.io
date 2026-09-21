@@ -313,6 +313,7 @@ const ERREURS = {
   demande_deja_en_cours:"Tu as déjà une demande en attente. Marine la validera après ton paiement au cabinet.",
   nombre_invalide:"Choisis un nombre de séances entre 1 et 100.",
   demande_introuvable:"Cette demande a déjà été traitée.",
+  lot_introuvable:"Ces séances ont déjà été utilisées ou retirées.",
   credits_insuffisants_adherente:"Cette adhérente n’a plus de crédit séance. Ajoute-lui des séances d’abord (onglet Adhérentes).",
   reservation_introuvable:"Réservation introuvable.",
   non_autorisee:"Action non autorisée.",
@@ -403,8 +404,9 @@ function detailLots(id, pourCliente){
   const ls = lotsDe(id);
   if (!ls.length) return '';
   return `<div class="stack" style="gap:4px; width:100%; text-align:left">${ls.map(l => `
-    <div class="row-between" style="font-size:14px"><span>${seances(l.restant)}</span>
-      <span class="${l.expire_le ? '' : 'faint'}">${l.expire_le ? `à utiliser avant le <b>${esc(fExp(l.expire_le))}</b>` : 'sans date limite'}</span></div>`).join('')}</div>`;
+    <div class="row-between" style="font-size:14px; gap:8px"><span style="white-space:nowrap">${seances(l.restant)}</span>
+      <span class="${l.expire_le ? '' : 'faint'}" style="flex:1; text-align:right">${l.expire_le ? `à utiliser avant le <b>${esc(fExp(l.expire_le))}</b>` : 'sans date limite'}</span>
+      ${pourCliente ? '' : `<button class="btn dangerish xs" data-act="suppr-lot" data-id="${l.id}" aria-label="Retirer ces séances">✕</button>`}</div>`).join('')}</div>`;
 }
 async function chargerNotifs(){
   const { data } = await sb.from('notifications').select('*').order('cree_le', { ascending:false }).limit(40);
@@ -1156,13 +1158,19 @@ function detailAdherente(a){
       <div class="faint">Ajoute les séances qu’elle a réglées au cabinet.</div>
       <div class="field" style="width:100%; margin:0; text-align:left"><label for="ad-exp">À utiliser avant le (facultatif)</label>
         <input id="ad-exp" type="date" min="${dayKey(new Date())}"></div>
+      <div style="font-weight:700; width:100%; text-align:left">Ajouter</div>
       <div class="row" style="flex-wrap:wrap; justify-content:center">
         ${[1,5,10].map(n=>`<button class="btn sm" data-act="credits" data-id="${a.id}" data-n="${n}">+${n}</button>`).join('')}
-        <button class="btn soft sm" data-act="credits" data-id="${a.id}" data-n="-1">−1</button>
       </div>
-      <div class="row" style="width:100%">
-        <input id="ad-n" type="number" placeholder="Autre nombre" class="grow">
-        <button class="btn soft sm" data-act="credits-libre" data-id="${a.id}">Ajouter</button>
+      <div style="font-weight:700; width:100%; text-align:left; margin-top:6px">Retirer</div>
+      <div class="row" style="flex-wrap:wrap; justify-content:center">
+        ${[1,5].map(n=>`<button class="btn dangerish sm" data-act="credits" data-id="${a.id}" data-n="-${n}" ${a.credits<n?'disabled':''}>−${n}</button>`).join('')}
+        <button class="btn dangerish sm" data-act="credits-tout" data-id="${a.id}" ${a.credits<1?'disabled':''}>Tout retirer</button>
+      </div>
+      <div class="row" style="width:100%; flex-wrap:wrap">
+        <input id="ad-n" type="number" min="1" placeholder="Autre nombre" class="grow">
+        <button class="btn soft sm" data-act="credits-libre" data-sens="1" data-id="${a.id}">Ajouter</button>
+        <button class="btn dangerish sm" data-act="credits-libre" data-sens="-1" data-id="${a.id}">Retirer</button>
       </div>
     </div>
     <div class="card stack">
@@ -1288,8 +1296,25 @@ document.addEventListener('click', async (e) => {
       flash('ok','Séances mises à jour.');
     }); break;
 
+    case 'credits-tout': {
+      const a = S.adherentes.find(x=>x.id===el.dataset.id);
+      if (!a || a.credits < 1 || !confirm(`Retirer les ${seances(a.credits)} de ${a.prenom} ?`)) break;
+      await agir(async()=>{
+        await rpc('admin_ajouter_credits', { p_adherente: a.id, p_nb: -a.credits, p_motif: '', p_expire: null });
+        await Promise.all([chargerAdherentes(), chargerCreneaux()]);
+        flash('ok','Séances retirées.');
+      }); break;
+    }
+    case 'suppr-lot': {
+      if (!confirm('Retirer ces séances du compte de la cliente ?')) break;
+      await agir(async()=>{
+        await rpc('admin_supprimer_lot', { p_lot: el.dataset.id });
+        await Promise.all([chargerAdherentes(), chargerCreneaux()]);
+        flash('ok','Séances retirées.');
+      }); break;
+    }
     case 'credits-libre': {
-      const n = Number($('#ad-n')?.value || 0);
+      const n = Math.abs(Number($('#ad-n')?.value || 0)) * Number(el.dataset.sens || 1);
       if (!n) { flash('err','Indique un nombre.'); break; }
       await agir(async()=>{
         await rpc('admin_ajouter_credits', { p_adherente: el.dataset.id, p_nb: n, p_motif: '', p_expire: n > 0 ? ($('#ad-exp')?.value || null) : null });
