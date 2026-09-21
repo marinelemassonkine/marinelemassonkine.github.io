@@ -522,6 +522,7 @@ function carteCreneau(c, admin){
     action = `<button class="btn soft sm" data-act="detail" data-id="${c.id}">Voir le cours</button>`;
   } else if (!annule && !passe) {
     if (mien) action = `<button class="btn dangerish sm" data-act="annuler" data-id="${c.ma_reservation_id}" data-debut="${c.debut}">Annuler</button>`;
+    else if (S.profil.credits < 1) action = `<button class="btn soft sm" disabled title="Plus de crédit séance">Plus de crédit</button>`;
     else if (libres > 0) action = `<button class="btn sm" data-act="reserver" data-id="${c.id}">Réserver</button>`;
     else action = `<button class="btn warnish sm" data-act="reserver" data-id="${c.id}">Liste d’attente</button>`;
   }
@@ -948,7 +949,8 @@ document.addEventListener('click', async (e) => {
       S.sheet.participants = p || [];
     }); break;
 
-    case 'reserver': await agir(async()=>{
+    case 'reserver': if (S.profil.credits < 1) { flash('err','Il ne te reste plus aucun crédit séance. Contacte Marine pour en rajouter.'); break; }
+    await agir(async()=>{
       const r = await rpc('reserver', { p_creneau: el.dataset.id });
       await Promise.all([chargerProfil(), chargerCreneaux()]);
       flash('ok', r.statut === 'confirmee'
