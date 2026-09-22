@@ -353,12 +353,31 @@ async function chargerCreneaux(){
 }
 function listeParticipants(c){
   const ps = (S.participants || {})[c.id] || [];
-  if (!ps.length) return '';
   const nom = x => x.moi ? '<b>toi</b>' : esc(x.nom);
   const conf = ps.filter(x => x.statut === 'confirmee'), att = ps.filter(x => x.statut === 'attente');
-  return `<div class="faint" style="font-size:12.5px; line-height:1.45; margin-top:4px">
-    ${conf.length ? `<span style="color:var(--ink-soft)">Inscrites :</span> ${conf.map(nom).join(', ')}` : ''}
-    ${att.length ? `<br><span style="color:var(--ink-soft)">En attente :</span> ${att.map(nom).join(', ')}` : ''}</div>`;
+  return `<button type="button" data-act="voir-participants" data-id="${c.id}" style="all:unset; display:block; cursor:pointer; font-size:12.5px; line-height:1.45; margin-top:4px; color:var(--ink-faint)">
+    ${conf.length ? `<span style="color:var(--ink-soft)">Inscrites :</span> ${conf.slice(0,4).map(nom).join(', ')}${conf.length>4?` +${conf.length-4}`:''}` : 'Personne d’inscrit pour l’instant'}
+    ${att.length ? `<br><span style="color:var(--ink-soft)">En attente :</span> ${att.length}` : ''}
+    <br><span style="color:var(--rose); font-weight:700; text-decoration:underline; text-underline-offset:2px">Voir tout le monde</span></button>`;
+}
+function feuilleParticipants(c){
+  if (!c) return '<div class="faint">Cours introuvable.</div>';
+  const ps = (S.participants || {})[c.id] || [];
+  const conf = ps.filter(x => x.statut === 'confirmee'), att = ps.filter(x => x.statut === 'attente');
+  const libres = Math.max(0, c.capacite - conf.length);
+  const ligne = (x, i, rang) => `<div class="person">
+      <div class="avatar">${rang ? i+1 : esc((x.nom||'?').split(' ').map(s=>s[0]).join('').slice(0,2).toUpperCase())}</div>
+      <div class="grow"><div class="name">${esc(x.nom)}${x.moi ? ' <span class="badge ok" style="margin-left:6px">toi</span>' : ''}</div></div></div>`;
+  return `
+    <div class="card stack" style="margin-bottom:14px">
+      <div style="font-weight:700">${esc(c.titre)}</div>
+      <div class="faint">${conf.length}/${c.capacite} inscrites · ${libres ? `${libres} place${libres>1?'s':''} libre${libres>1?'s':''}` : 'complet'}${att.length ? ` · ${att.length} en attente` : ''}</div>
+    </div>
+    <div class="section-title">Inscrites · ${conf.length}</div>
+    <div class="card">${conf.length ? conf.map((x,i)=>ligne(x,i,false)).join('') : '<div class="faint">Personne pour l’instant.</div>'}</div>
+    ${att.length ? `<div class="section-title">Liste d’attente · ${att.length}</div>
+      <div class="faint" style="margin:-4px 0 10px">Dans l’ordre d’arrivée : la première récupère la prochaine place libérée.</div>
+      <div class="card">${att.map((x,i)=>ligne(x,i,true)).join('')}</div>` : ''}`;
 }
 async function chargerDemandes(){
   const { data } = await sb.from('demandes_credits').select('*').order('cree_le', { ascending:false }).limit(estAdmin() ? 100 : 10);
@@ -1096,6 +1115,8 @@ function feuille(){
   let titre = '', corps = '';
   if (S.sheet.type === 'nouveau'){ titre = 'Nouveau cours'; corps = formNouveauCreneau(); }
   if (S.sheet.type === 'notifs'){ titre = 'Notifications'; corps = listeNotifs(); }
+  if (S.sheet.type === 'participants'){ const c = S.creneaux.find(x=>x.id===S.sheet.id);
+    titre = c ? `${fDay(new Date(c.debut)).replace(/^./, x=>x.toUpperCase())} · ${fTime(new Date(c.debut))}` : 'Participantes'; corps = feuilleParticipants(c); }
   if (S.sheet.type === 'detail'){  const c = S.creneaux.find(x=>x.id===S.sheet.id);
     titre = c ? `${fDay(new Date(c.debut))} · ${fTime(new Date(c.debut))}` : 'Cours'; corps = detailCreneau(c); }
   if (S.sheet.type === 'adherente'){ const a = S.adherentes.find(x=>x.id===S.sheet.id);
@@ -1376,6 +1397,7 @@ document.addEventListener('click', async (e) => {
         flash('ok','Séances retirées.');
       }); break;
     }
+    case 'voir-participants': S.sheet = { type:'participants', id: el.dataset.id }; render(); break;
     case 'h-onglet': if (S.sheet) { S.sheet.hOnglet = el.dataset.v; render(); } break;
     case 'suppr-lot': {
       if (!confirm('Retirer ces séances du compte de la cliente ?')) break;
