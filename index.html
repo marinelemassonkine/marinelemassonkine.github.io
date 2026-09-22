@@ -535,6 +535,7 @@ async function chargerAdherentes(){
   const { data } = await sb.from('adherentes').select('*').order('statut').order('nom');
   S.adherentes = data || [];
   await chargerLots();
+  try { const pa = await sb.from('push_abonnements').select('adherente_id'); S.pushIds = new Set((pa.data||[]).map(x=>x.adherente_id)); } catch {}
   if (S.sheet && S.sheet.type === 'adherente' && S.sheet.histo) {
     try { S.sheet.histo = await rpc('admin_historique', { p_adh: S.sheet.id }); } catch {}
   }
@@ -766,6 +767,7 @@ function vueCoursDispo(){
   const futurs = S.creneaux.filter(c => new Date(c.debut) > new Date());
   return `
     ${bandeauAnnonces()}
+    ${invitationPush()}
     ${alerteConfirmation()}
     ${alerteCredits()}
     ${listeParJour(futurs, false)}`;
@@ -965,7 +967,7 @@ function ligneAdherente(a){
     <div class="avatar">${esc(initiales(a))}</div>
     <div class="grow">
       <div class="name">${esc(a.prenom)} ${esc(a.nom)}</div>
-      <div class="faint">${esc(a.telephone||'—')}${a.role==='admin'?' · cabinet':''}${a.acces_videos?' · option vidéo':''}</div>
+      <div class="faint">${esc(a.telephone||'—')}${a.role==='admin'?' · cabinet':''}${a.acces_videos?' · option vidéo':''}${a.statut==='active' ? (S.pushIds && S.pushIds.has(a.id) ? ' · <span style="color:var(--ok)">🔔 notifs activées</span>' : ' · <span style="color:var(--danger)">🔕 notifs non activées</span>') : ''}</div>
     </div>
     ${actions}
   </div>`;
@@ -1000,6 +1002,22 @@ function cartePush(){
   }
   return `<div class="card stack"><div style="font-weight:700">Notifications sur ce téléphone</div>
     <div class="faint" style="line-height:1.5">${etat}</div>${bouton}</div>`;
+}
+function invitationPush(){
+  if (S.pushActif) return '';
+  let plusTard = 0; try { plusTard = Number(localStorage.getItem('push_plus_tard') || 0); } catch {}
+  if (Date.now() - plusTard < 3*864e5) return '';
+  const ok = ('serviceWorker' in navigator) && ('PushManager' in window) && ('Notification' in window);
+  if (ok && Notification.permission === 'denied') return '';
+  return `<div class="card stack" style="border:2px solid var(--rose-vif); margin-bottom:14px">
+    <div style="font-weight:700">🔔 Active les notifications</div>
+    <div class="faint" style="line-height:1.5">${ok
+      ? 'Reçois sur ton téléphone les rappels de tes cours, les places qui se libèrent et les messages de Marine.'
+      : estIOS() ? 'Sur iPhone : touche <b>Partager ⬆︎</b> en bas de Safari, puis <b>« Sur l’écran d’accueil »</b>. Ouvre ensuite l’appli depuis la nouvelle icône et reviens ici pour activer les notifications.'
+      : 'Ton navigateur ne permet pas les notifications. Ouvre le lien avec Chrome ou Safari à jour.'}</div>
+    <div class="row">${ok ? '<button class="btn sm grow" data-act="push-on">Activer les notifications</button>' : ''}
+      <button class="btn ghost sm" data-act="push-plus-tard">Plus tard</button></div>
+  </div>`;
 }
 async function etatPush(){
   try {
@@ -1418,6 +1436,7 @@ document.addEventListener('click', async (e) => {
       }
       break;
     }
+    case 'push-plus-tard': try { localStorage.setItem('push_plus_tard', String(Date.now())); } catch {} render(); break;
     case 'push-on': await agir(async()=>{ await activerPush(); flash('ok','Notifications activées sur ce téléphone.'); }); break;
     case 'push-test': await agir(async()=>{
       const reg = await navigator.serviceWorker.ready;
