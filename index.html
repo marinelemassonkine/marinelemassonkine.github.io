@@ -354,7 +354,7 @@ const SUPABASE_KEY = 'sb_publishable_bS-fbBuW7ru_xDywDv_A2A_xHGRGUeN';
 const sb = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 /* ------------------------------------------------------------------ état */
-const VERSION = '2026-09-22-r47';
+const VERSION = '2026-09-22-r48';
 const aujourdhui = new Date();
 const S = {
   session:null, profil:null, params:null,
@@ -1192,12 +1192,31 @@ function carteCreneau(c, admin, avecDate){
       ${!admin && !annule && !passe ? listeParticipants(c) : ''}
       ${!annule && !passe && (S.params.min_participants||0) > 0 && c.places_prises < S.params.min_participants
         ? `<div class="faint">Minimum ${S.params.min_participants} inscrites, sinon le cours est annulé</div>` : ''}
+      ${!admin && mien && !annule && !passe ? blocBesoin(c) : ''}
       ${etat}
     </div>
     ${action ? `<div style="align-self:center">${action}</div>` : ''}
   </div>`;
 }
 
+function blocBesoin(c){
+  const b = (c.mon_besoin || '').trim();
+  return `<button type="button" data-act="besoin" data-id="${c.id}" style="all:unset; cursor:pointer; display:block; margin-top:4px; font-size:12.5px; line-height:1.45">
+    ${b ? `<span style="color:var(--ink-soft)">Ton besoin :</span> ${esc(b)} <span style="color:var(--rose); font-weight:700; text-decoration:underline; text-underline-offset:2px">modifier</span>`
+        : `<span style="color:var(--rose); font-weight:700; text-decoration:underline; text-underline-offset:2px">✏️ Indiquer un besoin à Marine</span>`}
+  </button>`;
+}
+function feuilleBesoin(c){
+  if (!c) return '<div class="faint">Cours introuvable.</div>';
+  return `<form id="fbesoin" class="card stack" data-id="${c.id}">
+      <div class="faint" style="line-height:1.5">Dis à Marine ce dont tu as besoin pour ce cours : une zone à travailler, une douleur, une fatigue, une grossesse, une appréhension… Elle en tiendra compte pour adapter la séance.</div>
+      <div class="field" style="margin:0"><label for="bs-txt">Mon besoin pour ce cours</label>
+        <textarea id="bs-txt" name="texte" rows="4" maxlength="500" placeholder="Ex. : mal au bas du dos cette semaine, j’aimerais travailler en douceur">${esc(c.mon_besoin || '')}</textarea>
+        <div class="aide" style="margin-top:6px">Seule Marine le voit. Tu peux le modifier ou l’effacer quand tu veux.</div></div>
+      <button class="btn full" type="submit" ${S.busy?'disabled':''}>Envoyer à Marine</button>
+      ${(c.mon_besoin||'').trim() ? '<button class="btn soft full" type="button" data-act="besoin-effacer" data-id="'+c.id+'">Effacer mon besoin</button>' : ''}
+    </form>`;
+}
 function listeParJour(liste, admin){
   if (!liste.length) return `<div class="empty">${ICO.empty}<div>Aucun cours programmé pour le moment.</div></div>`;
   const groupes = {};
@@ -1705,6 +1724,8 @@ function feuille(){
   if (S.sheet.type === 'nouveau'){ titre = 'Nouveau cours'; corps = formNouveauCreneau(); }
   if (S.sheet.type === 'notifs'){ titre = 'Notifications'; corps = listeNotifs(); }
   if (S.sheet.type === 'menu'){ titre = 'Menu'; corps = feuilleMenu(); }
+  if (S.sheet.type === 'besoin'){ const c = S.creneaux.find(x=>x.id===S.sheet.id);
+    titre = c ? `Cours du ${fCourt(new Date(c.debut))} · ${fTime(new Date(c.debut))}` : 'Mon besoin'; corps = feuilleBesoin(c); }
   if (S.sheet.type === 'rappel'){ const r = S.rappels.find(x=>x.id===S.sheet.id); titre = r ? 'Modifier le rappel' : 'Nouveau rappel'; corps = formRappel(r); }
   if (S.sheet.type === 'participants'){ const c = S.creneaux.find(x=>x.id===S.sheet.id);
     titre = c ? `${fDay(new Date(c.debut)).replace(/^./, x=>x.toUpperCase())} · ${fTime(new Date(c.debut))}` : 'Participantes'; corps = feuilleParticipants(c); }
@@ -1759,7 +1780,8 @@ function detailCreneau(c){
   const ligne = p => `<div class="person">
       <div class="avatar">${esc(((p.prenom||' ')[0]+(p.nom||' ')[0]).toUpperCase())}</div>
       <div class="grow"><div class="name">${esc(p.prenom)} ${esc(p.nom)}</div>
-        <div class="faint">${p.telephone ? telLien(p.telephone) + ' · ' : ''}${seances(p.credits)} restante${p.credits>1?'s':''}${p.a_confirmer?' · <b>doit confirmer</b>':''}</div></div>
+        <div class="faint">${p.telephone ? telLien(p.telephone) + ' · ' : ''}${seances(p.credits)} restante${p.credits>1?'s':''}${p.a_confirmer?' · <b>doit confirmer</b>':''}</div>
+        ${(p.besoin||'').trim() ? `<div style="margin-top:6px; font-size:13.5px; line-height:1.45; background:var(--rose-soft); color:var(--rose); padding:8px 11px; border-radius:var(--radius-sm)"><b style="font-size:11.5px; text-transform:uppercase; letter-spacing:.06em; display:block; margin-bottom:2px">Son besoin</b>${esc(p.besoin)}</div>` : ''}</div>
       ${passe && p.statut==='confirmee' ? `
         <button class="btn ${p.presence==='presente'?'':'soft'} xs" data-act="presence" data-id="${p.reservation_id}" data-val="presente">Présente</button>
         <button class="btn ${p.presence==='absente'?'warnish':'soft'} xs" data-act="presence" data-id="${p.reservation_id}" data-val="absente">Absente</button>`
@@ -1985,6 +2007,7 @@ document.addEventListener('click', async (e) => {
       flash('ok', r.statut === 'confirmee'
         ? `C’est réservé ! 1 crédit séance décompté, il t’en reste ${S.profil.credits}.`
         : 'Le cours est complet : tu es en liste d’attente. Si une place se libère, tu seras inscrite automatiquement et prévenue. Aucune séance décomptée pour l’instant.');
+      S.sheet = { type:'besoin', id: el.dataset.id };
     }); break;
 
     case 'annuler': {
@@ -2113,6 +2136,11 @@ document.addEventListener('click', async (e) => {
       const { error } = await sb.from('parametres').update({ logo_url: null }).eq('id', true);
       if (error) throw error;
       await chargerProfil(); flash('ok','Logo retiré.');
+    }); break;
+    case 'besoin': S.sheet = { type:'besoin', id: el.dataset.id }; render(); break;
+    case 'besoin-effacer': await agir(async()=>{
+      await rpc('maj_besoin', { p_creneau: el.dataset.id, p_texte: '' });
+      await chargerCreneaux(); S.sheet = null; flash('ok','Besoin effacé.');
     }); break;
     case 'menu': S.sheet = { type:'menu' }; render(); break;
     case 'menu-vers': { const v = el.dataset.vue; S.sheet = null; if (v === 'messages') { ouvrirMessages(); break; } S.vue = v; S.notice = null; render();
@@ -2324,6 +2352,12 @@ document.addEventListener('submit', async (e) => {
     rafraichirChat(false); window.scrollTo(0, document.body.scrollHeight);
     return;
   }
+
+  if (f.id === 'fbesoin') return agir(async()=>{
+    await rpc('maj_besoin', { p_creneau: f.dataset.id, p_texte: (d.texte||'').trim() });
+    await chargerCreneaux(); S.sheet = null;
+    flash('ok', (d.texte||'').trim() ? 'C’est noté, Marine est prévenue 💛' : 'Besoin effacé.');
+  });
 
   if (f.id === 'fauth') return agir(async()=>{
     if (S.authMode === 'reset'){
