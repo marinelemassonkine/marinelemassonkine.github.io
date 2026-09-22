@@ -349,7 +349,8 @@ const ERREURS = {
   non_autorisee:"Action non autorisée.",
   adherente_introuvable:"Adhérente introuvable.",
   valeur_nulle:"Indique un nombre différent de zéro.",
-  valeur_invalide:"Valeur invalide."
+  valeur_invalide:"Valeur invalide.",
+  message_vide:"Écris un message avant d’envoyer."
 };
 function messageErreur(e){
   const m = (e && (e.message || e.error_description || e.msg)) || 'Une erreur est survenue.';
@@ -1446,6 +1447,7 @@ function feuille(){
     titre = a ? `${a.prenom} ${a.nom}` : 'Adhérente'; corps = detailAdherente(a); }
   return `<div class="sheet-bg" data-act="fermer-bg"><div class="sheet">
     <div class="sheet-head"><h2>${esc(titre)}</h2><button class="x" data-act="fermer" aria-label="Fermer">✕</button></div>
+    ${S.notice ? `<div class="notice ${S.notice.type}">${esc(S.notice.texte)}</div>` : ''}
     ${corps}
   </div></div>`;
 }
@@ -1526,9 +1528,52 @@ function detailCreneau(c){
       </div>
       <div class="faint" style="margin-top:9px">${libres>0 ? `${libres} place${libres>1?'s':''} libre${libres>1?'s':''} — sinon la personne ira en liste d’attente.` : 'Le cours est complet : la personne ira en liste d’attente.'}</div></div>
 
+      ${blocNonInscrites(c, dispo, libres)}
+
       <div style="margin-top:22px"><button class="btn dangerish full" data-act="annuler-cours" data-id="${c.id}">Annuler ce cours et rendre les séances</button></div>` : ''}`;
 }
 
+const MSG_PLACES = {
+  titre: '📣 Il reste {places} place(s) · {jour}',
+  message: 'Hey {prenom} ! 😊 Il reste {places} place(s) au cours de {jour} à {heure}. Si tu as envie de venir, réserve vite dans l’appli ❤️'
+};
+function blocNonInscrites(c, dispo, libres){
+  if (!dispo.length) return `<div class="section-title">Pas inscrites</div><div class="card faint">Toutes les adhérentes actives sont déjà inscrites ou en attente 🎉</div>`;
+  const rel = (S.sheet && S.sheet.relances) || {};
+  const quand = t => { const d = new Date(t); return dayKey(d) === dayKey(new Date()) ? `aujourd’hui ${fTime(d)}` : `le ${fCourt(d)} ${fTime(d)}`; };
+  return `<div class="section-title">Pas inscrites · ${dispo.length}</div>
+    <div class="faint" style="margin:-4px 0 10px; line-height:1.45">Adhérentes actives qui ne sont ni inscrites ni en attente pour ce cours. Coche celles à prévenir et envoie-leur une notification.</div>
+    <div class="card">
+      <label style="display:flex; gap:8px; align-items:center; font-weight:700; font-size:14px; padding-bottom:8px; border-bottom:1px solid var(--line); cursor:pointer">
+        <input type="checkbox" id="rel-tout" checked style="width:auto; flex:none"> Tout sélectionner (${dispo.length})</label>
+      ${dispo.map(a => `<label class="person" style="cursor:pointer">
+        <input type="checkbox" class="rel-sel" value="${a.id}" checked style="width:auto; flex:none">
+        ${avatar(a)}
+        <div class="grow"><div class="name">${esc(a.prenom)} ${esc(a.nom)}</div>
+          <div class="faint">${a.telephone ? telLien(a.telephone) + ' · ' : ''}<span style="${a.credits < 1 ? 'color:var(--danger); font-weight:700' : ''}">${seances(a.credits)}</span>${rel[a.id] ? ` · <span style="color:var(--ok)">✓ notifiée ${quand(rel[a.id])}</span>` : ''}</div></div>
+      </label>`).join('')}
+    </div>
+    <div class="card stack" style="margin-top:10px">
+      <div class="field" style="margin:0"><label for="rel-modele">Message à envoyer</label>
+        <select id="rel-modele">
+          <option value="__places">📣 Places disponibles (message proposé)</option>
+          ${(S.rappels || []).map(r => `<option value="${r.id}">🔔 Rappel : ${esc(r.titre)}</option>`).join('')}
+          <option value="__libre">✏️ Écrire mon propre message</option>
+        </select></div>
+      <div class="field" style="margin:0"><label for="rel-titre">Titre de la notification</label>
+        <input id="rel-titre" value="${esc(MSG_PLACES.titre)}" maxlength="120"></div>
+      <div class="field" style="margin:0"><label for="rel-msg">Message</label>
+        <textarea id="rel-msg" rows="4" maxlength="1000">${esc(MSG_PLACES.message)}</textarea>
+        <div class="faint" style="margin-top:6px; font-size:12.5px; line-height:1.45">Remplacés automatiquement : <b>{prenom}</b>, <b>{jour}</b> (${esc(fDay(new Date(c.debut)))}), <b>{heure}</b>, <b>{places}</b> (${libres} en ce moment), <b>{seances}</b> (ses séances restantes).</div></div>
+      <button class="btn full" data-act="relancer" data-id="${c.id}" ${S.busy ? 'disabled' : ''}>📣 Notifier les adhérentes cochées</button>
+    </div>`;
+}
+async function chargerRelances(creneau){
+  try {
+    const { data } = await sb.from('relances_cours').select('adherente_id,le').eq('creneau_id', creneau);
+    if (S.sheet && S.sheet.id === creneau) S.sheet.relances = Object.fromEntries((data || []).map(x => [x.adherente_id, x.le]));
+  } catch {}
+}
 const ETATS = {
   venue:['Présente','ok',''], reserve:['Réservé','ok',''], a_confirmer:['À confirmer','wait',''],
   annule_temps:['Annulé à temps','neutral','séance rendue'], annule_tard:['Annulé tard','off','séance perdue'],
@@ -1652,7 +1697,8 @@ document.addEventListener('click', async (e) => {
     case 'detail': await agir(async()=>{
       S.sheet = { type:'detail', id: el.dataset.id, participants:null };
       render();
-      const [p] = await Promise.all([ rpc('detail_creneau',{p_creneau: el.dataset.id}), chargerAdherentes() ]);
+      const [p] = await Promise.all([ rpc('detail_creneau',{p_creneau: el.dataset.id}), chargerAdherentes(),
+        chargerRelances(el.dataset.id), (S.rappels && S.rappels.length) ? null : chargerRappels() ]);
       S.sheet.participants = p || [];
     }); break;
 
@@ -1773,6 +1819,19 @@ document.addEventListener('click', async (e) => {
       rafraichirChat(false); break;
     }
     case 'h-filtre': if (S.sheet) { S.sheet.hFiltre = (S.sheet.hFiltre === el.dataset.v) ? '' : el.dataset.v; S.sheet.hOnglet = 'cours'; render(); } break;
+    case 'relancer': {
+      const ids = [...document.querySelectorAll('.rel-sel:checked')].map(x => x.value);
+      const message = ($('#rel-msg')?.value || '').trim(), titre = ($('#rel-titre')?.value || '').trim();
+      if (!ids.length) { flash('err', 'Coche au moins une adhérente.'); break; }
+      if (!message) { flash('err', 'Écris le message à envoyer.'); break; }
+      if (!confirm(`Envoyer cette notification à ${ids.length} adhérente${ids.length>1?'s':''} ?`)) break;
+      const creneau = el.dataset.id;
+      await agir(async()=>{
+        const r = await rpc('admin_notifier_cours', { p_creneau: creneau, p_ids: ids, p_message: message, p_titre: titre });
+        await chargerRelances(creneau);
+        flash('ok', `Notification envoyée à ${r && r.envoyes != null ? r.envoyes : ids.length} adhérente${ids.length>1?'s':''} 📣`);
+      }); break;
+    }
     case 'h-onglet': if (S.sheet) { S.sheet.hOnglet = el.dataset.v; render(); } break;
     case 'suppr-lot': {
       if (!confirm('Retirer ces séances du compte de la cliente ?')) break;
@@ -1905,6 +1964,18 @@ document.addEventListener('click', async (e) => {
 
 document.addEventListener('input', (e)=>{ if (e.target.id === 'msg-texte') ajusterZone(e.target); });
 document.addEventListener('change', (e)=>{ if (e.target.id === 'nouvelle-conv' && e.target.value) { S.conv = e.target.value; marquerLu(S.conv); S.scrollBas = true; render(); } });
+document.addEventListener('change', (e)=>{
+  if (e.target.id === 'rel-tout') { document.querySelectorAll('.rel-sel').forEach(x => x.checked = e.target.checked); return; }
+  if (e.target.classList && e.target.classList.contains('rel-sel')) {
+    const t = $('#rel-tout'); if (t) t.checked = [...document.querySelectorAll('.rel-sel')].every(x => x.checked); return;
+  }
+  if (e.target.id === 'rel-modele') {
+    const v = e.target.value, m = $('#rel-msg'), t = $('#rel-titre');
+    if (v === '__places') { m.value = MSG_PLACES.message; t.value = MSG_PLACES.titre; }
+    else if (v === '__libre') { m.value = ''; t.value = '💌 Un message de Marine'; m.focus(); }
+    else { const r = (S.rappels || []).find(x => x.id === v); if (r) { m.value = r.message || ''; t.value = r.titre || ''; } }
+  }
+});
 document.addEventListener('keydown', (e)=>{
   if (e.target.id === 'msg-texte' && e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); e.target.form.requestSubmit(); }
 });
