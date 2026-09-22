@@ -568,6 +568,11 @@ async function chargerAdherentes(){
   }
 }
 const estAdmin = () => S.profil && S.profil.role === 'admin';
+function telLien(n){
+  if (!n) return '—';
+  const num = String(n).replace(/[^\d+]/g, '');
+  return `<a href="tel:${esc(num)}" style="color:var(--rose); font-weight:700; text-decoration:none; white-space:nowrap">📞 ${esc(n)}</a>`;
+}
 /* ---------------------------------------------------------- messagerie */
 async function chargerMessages(){
   const [g, p, l] = await Promise.all([
@@ -701,6 +706,7 @@ function vueMessages(){
     return `<div class="row" style="margin-bottom:12px">
         <button class="btn ghost sm" data-act="conv-retour">← Retour</button>
         <div class="grow" style="font-weight:700; overflow:hidden; text-overflow:ellipsis; white-space:nowrap">${titre}</div>
+        ${a && a.telephone ? `<a class="btn soft sm" href="tel:${esc(String(a.telephone).replace(/[^\d+]/g, ''))}" style="text-decoration:none" aria-label="Appeler">📞</a>` : ''}
         ${a ? `<button class="btn soft sm" data-act="sheet" data-sheet="adherente" data-id="${a.id}">Fiche</button>` : ''}
       </div>
       ${S.conv === 'groupe' ? '<div class="faint" style="font-size:12.5px; margin:-4px 0 12px">Tout le monde voit ces messages. Coche « info importante » pour mettre un message en avant.</div>' : ''}
@@ -1214,7 +1220,7 @@ function ligneAdherente(a){
     ${avatar(a)}
     <div class="grow">
       <div class="name">${esc(a.prenom)} ${esc(a.nom)}</div>
-      <div class="faint">${esc(a.telephone||'—')}${a.role==='admin'?' · cabinet':''}${a.acces_videos?' · option vidéo':''}${a.statut==='active' ? (S.pushIds && S.pushIds.has(a.id) ? ' · <span style="color:var(--ok)">🔔 notifs activées</span>' : ' · <span style="color:var(--danger)">🔕 notifs non activées</span>') : ''}</div>
+      <div class="faint">${telLien(a.telephone)}${a.role==='admin'?' · cabinet':''}${a.acces_videos?' · option vidéo':''}${a.statut==='active' ? (S.pushIds && S.pushIds.has(a.id) ? ' · <span style="color:var(--ok)">🔔 notifs activées</span>' : ' · <span style="color:var(--danger)">🔕 notifs non activées</span>') : ''}</div>
     </div>
     ${actions}
   </div>`;
@@ -1484,7 +1490,7 @@ function detailCreneau(c){
   const ligne = p => `<div class="person">
       <div class="avatar">${esc(((p.prenom||' ')[0]+(p.nom||' ')[0]).toUpperCase())}</div>
       <div class="grow"><div class="name">${esc(p.prenom)} ${esc(p.nom)}</div>
-        <div class="faint">${esc(p.telephone||'')} · ${seances(p.credits)} restante${p.credits>1?'s':''}${p.a_confirmer?' · <b>doit confirmer</b>':''}</div></div>
+        <div class="faint">${p.telephone ? telLien(p.telephone) + ' · ' : ''}${seances(p.credits)} restante${p.credits>1?'s':''}${p.a_confirmer?' · <b>doit confirmer</b>':''}</div></div>
       ${passe && p.statut==='confirmee' ? `
         <button class="btn ${p.presence==='presente'?'':'soft'} xs" data-act="presence" data-id="${p.reservation_id}" data-val="presente">Présente</button>
         <button class="btn ${p.presence==='absente'?'warnish':'soft'} xs" data-act="presence" data-id="${p.reservation_id}" data-val="absente">Absente</button>`
@@ -1557,6 +1563,8 @@ function detailAdherente(a){
   if (!a) return '<div class="faint">Introuvable.</div>';
   return `
     ${carteProfil(a, true)}
+    ${a.role !== 'admin' && a.telephone ? `<div class="row" style="margin:-6px 0 16px"><a class="btn grow" href="tel:${esc(String(a.telephone).replace(/[^\d+]/g, ''))}" style="text-decoration:none; text-align:center">📞 Appeler ${esc(a.prenom)}</a>
+      <button class="btn soft grow" data-act="ecrire-a" data-id="${a.id}">💬 Message</button></div>` : ''}
     <div class="card stack" style="align-items:center; text-align:center; margin-bottom:16px">
       <div style="font-family:Fraunces,serif; font-size:40px; font-weight:600; line-height:1; color:var(--accent)">${a.credits}</div>
       <div class="muted" style="margin-top:-4px">séance${a.credits>1?'s':''} restante${a.credits>1?'s':''}</div>
@@ -1584,12 +1592,12 @@ function detailAdherente(a){
       <div class="row-between"><span class="muted">Date de naissance</span><span>${a.date_naissance ? esc(fExp(a.date_naissance)) + ` (${age(a)} ans)` : '—'}</span></div>
       <div class="row-between"><span class="muted">Adresse</span><span style="text-align:right">${esc(a.adresse||'—')}</span></div>
       ${a.infos ? `<div><div class="muted" style="margin-bottom:4px">Infos utiles</div><div style="font-size:14px; line-height:1.45; white-space:pre-line; background:var(--surface-2); padding:10px; border-radius:var(--radius-sm)">${esc(a.infos)}</div></div>` : ''}
-      <div class="row-between"><span class="muted">Téléphone</span><span>${esc(a.telephone||'—')}</span></div>
+      <div class="row-between"><span class="muted">Téléphone</span><span>${telLien(a.telephone)}</span></div>
       <div class="row-between"><span class="muted">Inscrite le</span><span>${esc(fDate(new Date(a.cree_le)))}</span></div>
     </div>
     ${blocHistorique()}
     <div style="margin-top:18px" class="stack">
-      ${a.role !== 'admin' ? `<button class="btn full" data-act="ecrire-a" data-id="${a.id}">💬 Envoyer un message privé</button>` : ''}
+      ${a.role !== 'admin' ? `<button class="btn soft full" data-act="ecrire-a" data-id="${a.id}">💬 Envoyer un message privé</button>` : ''}
       ${a.statut==='active'
         ? `<button class="btn ghost full" data-act="statut" data-id="${a.id}" data-val="inactive">Mettre le compte en pause</button>`
         : `<button class="btn full" data-act="statut" data-id="${a.id}" data-val="active">Réactiver le compte</button>`}
