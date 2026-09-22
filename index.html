@@ -315,7 +315,7 @@ const SUPABASE_KEY = 'sb_publishable_bS-fbBuW7ru_xDywDv_A2A_xHGRGUeN';
 const sb = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 /* ------------------------------------------------------------------ état */
-const VERSION = '2026-09-22-r29';
+const VERSION = '2026-09-22-r30';
 const aujourdhui = new Date();
 const S = {
   session:null, profil:null, params:null,
@@ -584,6 +584,9 @@ function telLien(n){
   return `<a href="tel:${esc(num)}" style="color:var(--rose); font-weight:700; text-decoration:none; white-space:nowrap">📞 ${esc(n)}</a>`;
 }
 /* ---------------------------------------------------------- actualisation */
+function aTraiter(){
+  return S.adherentes.filter(a => a.statut === 'en_attente').length + S.demandes.filter(d => d.statut === 'en_attente').length;
+}
 function saisieEnCours(){
   if (S.sheet && S.sheet.type !== 'notifs') return true;
   const a = document.activeElement;
@@ -614,6 +617,7 @@ async function actualiser(silencieux){
   try {
     if (await verifierVersion()) return;
     await chargerProfil();
+    const avant = estAdmin() ? { i: S.adherentes.filter(a => a.statut === 'en_attente').length, d: S.demandes.filter(d => d.statut === 'en_attente').length } : null;
     const t = [chargerNotifs()];
     if (S.profil && (S.profil.statut === 'active' || estAdmin())){
       t.push(chargerCreneaux(), chargerAnnonces(), chargerDemandes(), chargerMessages().catch(() => {}));
@@ -628,11 +632,19 @@ async function actualiser(silencieux){
       await chargerRelances(S.sheet.id);
     }
     if (S.profil && S.profil.statut === 'active' && !S.canal) abonnerMessages();
+    if (avant){
+      const i = S.adherentes.filter(a => a.statut === 'en_attente').length - avant.i, d = S.demandes.filter(x => x.statut === 'en_attente').length - avant.d;
+      const bouts = [];
+      if (i > 0) bouts.push(`${i} nouvelle${i>1?'s':''} inscription${i>1?'s':''} à valider`);
+      if (d > 0) bouts.push(`${d} nouvelle${d>1?'s':''} demande${d>1?'s':''} de séances`);
+      if (bouts.length) S.nouveautes = '🆕 ' + bouts.join(' et ') + ' — onglet Adhérentes.';
+    }
   } catch (e) {
     if (!silencieux) flash('err', 'Impossible d’actualiser. Vérifie ta connexion.');
   } finally {
     S.maj = false; S.rafraichit = false;
   }
+  if (S.nouveautes){ const n = S.nouveautes; S.nouveautes = null; if (silencieux && saisieEnCours()) { S.notice = { type:'ok', texte:n }; return; } flash('ok', n); return; }
   if (!silencieux) flash('ok', 'À jour ✓');
   else if (!saisieEnCours()) { if (S.vue === 'messages' && S.conv) rafraichirChat(false); else render(); }
 }
@@ -910,9 +922,10 @@ function barreOnglets(admin){
     ? [['planning','Planning',ICO.cal],['adherentes','Adhérentes',ICO.users],['messages','Messages',ICO.chat],['videos','Vidéos',ICO.play],['rappels','Rappels',ICO.bell],['reglages','Réglages',ICO.gear]]
     : [['cours','Les cours',ICO.cal],['mes','Mes cours',ICO.check],['messages','Messages',ICO.chat],...(S.profil.acces_videos?[['videos','Vidéos',ICO.play]]:[]),['compte','Mon compte',ICO.user]];
   const nMsg = totalNonLus();
+  const nAdh = admin ? aTraiter() : 0;
   if (S.profil.statut !== 'active' && !admin) return '';
   return `<nav class="tabs"><div class="tabs-in">${items.map(([k,l,i])=>`
-    <button class="tab" data-act="vue" data-vue="${k}" ${S.vue===k?'aria-current="page"':''}>${i}<span>${l}</span>${k==='messages' && nMsg ? `<i class="pastille">${nMsg > 99 ? '99+' : nMsg}</i>` : ''}</button>`).join('')}
+    <button class="tab" data-act="vue" data-vue="${k}" ${S.vue===k?'aria-current="page"':''}>${i}<span>${l}</span>${k==='messages' && nMsg ? `<i class="pastille">${nMsg > 99 ? '99+' : nMsg}</i>` : ''}${k==='adherentes' && nAdh ? `<i class="pastille">${nAdh}</i>` : ''}</button>`).join('')}
   </div></nav>`;
 }
 
