@@ -1530,7 +1530,7 @@ function detailCreneau(c){
 }
 
 const ETATS = {
-  venue:['Venue','ok',''], reserve:['Réservé','ok',''], a_confirmer:['À confirmer','wait',''],
+  venue:['Présente','ok',''], reserve:['Réservé','ok',''], a_confirmer:['À confirmer','wait',''],
   annule_temps:['Annulé à temps','neutral','séance rendue'], annule_tard:['Annulé tard','off','séance perdue'],
   absente:['Absente','off','séance perdue'], attente:['En attente','wait',''],
   attente_retiree:['Sortie de l’attente','neutral',''], cours_annule:['Cours annulé','neutral','annulé par Marine · séance rendue']
@@ -1540,21 +1540,36 @@ function blocHistorique(){
   if (!h) return '<div class="section-title">Historique</div><div class="loading">Chargement…</div>';
   const s = h.stats, onglet = S.sheet.hOnglet || 'cours';
   const tuile = (n, l) => `<div class="card" style="padding:10px; text-align:center; margin:0"><div style="font-family:Fraunces,serif; font-size:24px; font-weight:600; color:var(--accent)">${n}</div><div class="faint" style="font-size:12px">${l}</div></div>`;
-  const cours = h.cours.length ? h.cours.map(c => { const [lib, cls, note] = ETATS[c.etat] || [c.etat,'neutral',''], d = new Date(c.debut);
+  const FILTRES = { presente:['venue'], loupe:['absente'], annule:['annule_temps','annule_tard'] };
+  const filtre = S.sheet.hFiltre || '';
+  const listeCours = filtre ? h.cours.filter(c => FILTRES[filtre].includes(c.etat)) : h.cours;
+  const cours = listeCours.length ? listeCours.map(c => { const [lib, cls, note] = ETATS[c.etat] || [c.etat,'neutral',''], d = new Date(c.debut);
       return `<div class="hist"><div class="grow"><span style="text-transform:capitalize">${esc(fDay(d))}</span> · ${fTime(d)}
         <div class="faint">Réservé le ${esc(fCourt(new Date(c.reserve_le)))}${note ? ' · '+note : ''}</div></div><span class="badge ${cls}" style="flex:none">${lib}</span></div>`; }).join('')
-    : '<div class="faint">Aucun cours pour l’instant.</div>';
+    : `<div class="faint">${filtre ? 'Aucun cours dans cette catégorie.' : 'Aucun cours pour l’instant.'}</div>`;
   const mouv = h.mouvements.length ? h.mouvements.map(m => {
       const cls = m.delta>0?'plus':m.delta<0?'minus':'zero', val = m.delta>0?`+${m.delta}`:m.delta<0?`${m.delta}`:'0';
       return `<div class="hist"><div class="grow">${esc(m.motif)}<div class="faint">${esc(fDate(new Date(m.le)))} · ${fTime(new Date(m.le))}</div></div><div class="delta ${cls}">${val}</div></div>`; }).join('')
     : '<div class="faint">Aucun mouvement.</div>';
   return `<div class="section-title">Historique</div>
-    <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-bottom:10px">
-      ${tuile(s.venue,'venue'+(s.venue>1?'s':''))}${tuile(s.reserve,'à venir')}${tuile(s.annule_temps,'annulé à temps')}
-      ${tuile(s.annule_tard,'annulé hors délai')}${tuile(s.absente,'absence'+(s.absente>1?'s':''))}${tuile(s.attente,'en attente')}
-    </div>
+    ${(() => {
+      const pres = s.venue||0, loupe = s.absente||0, tard = s.annule_tard||0, annule = (s.annule_temps||0) + tard;
+      const base = pres + loupe + tard, taux = base ? Math.round(pres * 100 / base) : null;
+      const gros = (k, n, l, sous, coul, fond) => `<button type="button" data-act="h-filtre" data-v="${k}" style="all:unset; box-sizing:border-box; cursor:pointer; text-align:center; padding:12px 6px; border-radius:var(--radius); background:${fond}; border:2px solid ${filtre===k ? coul : 'transparent'}">
+          <div style="font-family:Fraunces,serif; font-size:30px; font-weight:600; line-height:1; color:${coul}">${n}</div>
+          <div style="font-size:13px; font-weight:700; color:${coul}; margin-top:5px">${l}</div>
+          <div class="faint" style="font-size:11px; margin-top:2px; min-height:13px">${sous}</div></button>`;
+      return `<div style="display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-bottom:8px">
+          ${gros('presente', pres, 'Présente ✅', 'cours suivis', 'var(--ok)', 'var(--ok-soft)')}
+          ${gros('loupe', loupe, loupe>1?'Loupés ❌':'Loupé ❌', 'absente sans prévenir', 'var(--danger)', 'var(--danger-soft)')}
+          ${gros('annule', annule, annule>1?'Annulés 🚫':'Annulé 🚫', tard ? `dont ${tard} hors délai` : 'à temps', 'var(--warn)', 'var(--warn-soft)')}
+        </div>
+        <div class="faint" style="font-size:12.5px; text-align:center; margin-bottom:12px; line-height:1.5">
+          ${taux !== null ? `Assiduité <b style="color:var(--ink)">${taux} %</b> · ` : ''}${s.reserve||0} à venir${s.attente ? ` · ${s.attente} en attente` : ''}${s.cours_annule ? ` · ${s.cours_annule} cours annulé${s.cours_annule>1?'s':''} par Marine` : ''}
+          <br>Touchez une case pour voir le détail.${filtre ? ` <button class="linkish" data-act="h-filtre" data-v="" style="font-size:12.5px">Tout afficher</button>` : ''}</div>`;
+    })()}
     <div style="display:flex; gap:6px; margin-bottom:10px">
-      <button class="btn ${onglet==='cours'?'':'soft'} sm grow" data-act="h-onglet" data-v="cours">Cours (${h.cours.length})</button>
+      <button class="btn ${onglet==='cours'?'':'soft'} sm grow" data-act="h-onglet" data-v="cours">Cours (${listeCours.length})</button>
       <button class="btn ${onglet==='seances'?'':'soft'} sm grow" data-act="h-onglet" data-v="seances">Séances (${h.mouvements.length})</button>
     </div>
     <div class="card">${onglet==='cours' ? cours : mouv}</div>`;
@@ -1757,6 +1772,7 @@ document.addEventListener('click', async (e) => {
       if (m) { m.supprime = true; m.texte = ''; }
       rafraichirChat(false); break;
     }
+    case 'h-filtre': if (S.sheet) { S.sheet.hFiltre = (S.sheet.hFiltre === el.dataset.v) ? '' : el.dataset.v; S.sheet.hOnglet = 'cours'; render(); } break;
     case 'h-onglet': if (S.sheet) { S.sheet.hOnglet = el.dataset.v; render(); } break;
     case 'suppr-lot': {
       if (!confirm('Retirer ces séances du compte de la cliente ?')) break;
