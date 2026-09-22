@@ -157,7 +157,17 @@ main{padding-block:20px 24px; min-height:60vh}
 .faint{color:var(--ink-faint); font-size:13px}
 
 /* annonces */
-.annonce{border-radius:var(--radius-sm); padding:11px 13px; font-size:14px; line-height:1.45; margin-bottom:10px; border:1px solid transparent}
+.annonce{display:flex; gap:11px; align-items:flex-start; border-radius:var(--radius); padding:13px 15px; font-size:14.5px; line-height:1.5; border:1px solid transparent; box-shadow:var(--shadow)}
+.annonce .ico{flex:none; font-size:17px; line-height:1.25}
+.annonce .txt{min-width:0}
+.annonce .quand{font-size:12px; opacity:.75; margin-top:5px}
+.ann-wrap{margin-bottom:14px}
+.ann-slides{display:grid}
+.ann-slide{grid-area:1/1; opacity:0; visibility:hidden; transition:opacity .35s ease}
+.ann-slide.on{opacity:1; visibility:visible}
+.ann-dots{display:flex; gap:6px; justify-content:center; margin-top:9px}
+.ann-dot{width:7px; height:7px; padding:0; border:0; border-radius:999px; background:var(--line-strong); cursor:pointer; transition:width .25s, background .25s}
+.ann-dot.on{width:20px; background:var(--rose)}
 .annonce.info{background:var(--accent-soft); color:var(--accent); border-color:color-mix(in srgb, var(--accent) 20%, transparent)}
 .annonce.important{background:var(--warn-soft); color:var(--warn); border-color:color-mix(in srgb, var(--warn) 30%, transparent)}
 .annonce b{display:block; font-size:11px; text-transform:uppercase; letter-spacing:.07em; opacity:.8; margin-bottom:3px; font-weight:700}
@@ -325,7 +335,7 @@ const SUPABASE_KEY = 'sb_publishable_bS-fbBuW7ru_xDywDv_A2A_xHGRGUeN';
 const sb = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 /* ------------------------------------------------------------------ état */
-const VERSION = '2026-09-22-r32';
+const VERSION = '2026-09-22-r33';
 const aujourdhui = new Date();
 const S = {
   session:null, profil:null, params:null,
@@ -663,6 +673,7 @@ function initActualisation(){
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') actualiser(true); });
   window.addEventListener('focus', () => { if (Date.now() - (S.derniereActu || 0) > 20000) { S.derniereActu = Date.now(); actualiser(true); } });
   setInterval(() => { if (document.visibilityState === 'visible') actualiser(true); }, 60000);
+  setInterval(tournerAnnonces, 6500);
   // tirer vers le bas pour actualiser
   const ptr = document.getElementById('ptr'), lab = ptr && ptr.querySelector('span');
   let y0 = null, dy = 0;
@@ -1023,10 +1034,32 @@ function vueAdherente(){
 function bandeauAnnonces(){
   const liste = annoncesActives();
   if (!liste.length) return '';
-  return liste.map(a => `<div class="annonce ${a.ton}">
-    ${a.ton === 'important' ? '<b>Information importante</b>' : ''}
-    ${esc(a.texte)}
-  </div>`).join('');
+  if (S.annIdx == null || S.annIdx >= liste.length) S.annIdx = 0;
+  const carte = (a, i) => `<div class="ann-slide${i === S.annIdx ? ' on' : ''}">
+      <div class="annonce ${a.ton}">
+        <div class="ico">${a.ton === 'important' ? '⚠️' : '💬'}</div>
+        <div class="txt"><b>${a.ton === 'important' ? 'Information importante' : 'Le mot de Marine'}</b>${esc(a.texte)}
+          ${a.fin ? `<div class="quand">Jusqu’au ${esc(fCourt(dePuisCle(a.fin)))}</div>` : ''}</div>
+      </div></div>`;
+  return `<div class="ann-wrap" id="annonces">
+    <div class="ann-slides">${liste.map(carte).join('')}</div>
+    ${liste.length > 1 ? `<div class="ann-dots">${liste.map((_, i) =>
+      `<button class="ann-dot${i === S.annIdx ? ' on' : ''}" data-act="ann-dot" data-i="${i}" aria-label="Annonce ${i+1} sur ${liste.length}"></button>`).join('')}</div>` : ''}
+  </div>`;
+}
+function majAnnonces(){
+  const w = document.getElementById('annonces');
+  if (!w) return;
+  w.querySelectorAll('.ann-slide').forEach((el, i) => el.classList.toggle('on', i === S.annIdx));
+  w.querySelectorAll('.ann-dot').forEach((el, i) => el.classList.toggle('on', i === S.annIdx));
+}
+function tournerAnnonces(){
+  const w = document.getElementById('annonces');
+  if (!w || document.visibilityState !== 'visible') return;
+  const n = w.querySelectorAll('.ann-slide').length;
+  if (n < 2) return;
+  S.annIdx = ((S.annIdx || 0) + 1) % n;
+  majAnnonces();
 }
 
 function carteCreneau(c, admin, avecDate){
@@ -1950,6 +1983,7 @@ document.addEventListener('click', async (e) => {
         flash('ok', `Notification envoyée à ${r && r.envoyes != null ? r.envoyes : ids.length} adhérente${ids.length>1?'s':''} 📣`);
       }); break;
     }
+    case 'ann-dot': S.annIdx = Number(el.dataset.i); majAnnonces(); break;
     case 'actualiser': actualiser(false); break;
     case 'recharger': recharger(); break;
     case 'h-onglet': if (S.sheet) { S.sheet.hOnglet = el.dataset.v; render(); } break;
