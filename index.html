@@ -111,6 +111,31 @@ h1,h2,h3{font-family:"Fraunces", ui-serif, Georgia, serif; font-weight:500; marg
 }
 .tab svg{width:21px; height:21px; stroke:currentColor; fill:none; stroke-width:1.6; stroke-linecap:round; stroke-linejoin:round}
 .tab[aria-current="page"]{color:var(--accent); border-top-color:var(--rose-vif)}
+.tab{position:relative}
+.tab i.pastille{position:absolute; top:4px; left:calc(50% + 5px); min-width:17px; height:17px; padding:0 4px; border-radius:999px; background:var(--danger); color:#fff; font-size:10.5px; font-style:normal; line-height:17px; font-weight:700; letter-spacing:0}
+.chat{display:flex; flex-direction:column; gap:8px; padding-bottom:6px}
+.bulle-l{display:flex; gap:8px; align-items:flex-end; max-width:86%}
+.bulle-l.moi{align-self:flex-end; flex-direction:row-reverse}
+.bulle-l .avatar{width:28px; height:28px; font-size:10.5px}
+.bulle{background:var(--surface); border:1px solid var(--line); border-radius:16px 16px 16px 5px; padding:8px 12px; font-size:15px; line-height:1.4; white-space:pre-wrap; word-break:break-word}
+.moi .bulle{background:var(--accent); color:var(--accent-ink); border-color:var(--accent); border-radius:16px 16px 5px 16px}
+.marine .bulle{background:var(--rose-soft); border-color:color-mix(in srgb, var(--rose) 22%, transparent)}
+.bulle-n{font-size:12px; font-weight:700; color:var(--rose); margin-bottom:2px}
+.bulle-h{font-size:11px; color:var(--ink-faint); margin-top:3px; padding:0 4px}
+.moi .bulle-h{text-align:right}
+.bulle-h button{all:unset; cursor:pointer; text-decoration:underline; text-underline-offset:2px}
+.jour-sep{align-self:center; font-size:12px; color:var(--ink-faint); background:var(--surface-2); padding:3px 11px; border-radius:999px; margin:8px 0 2px; text-transform:capitalize}
+.msg-info{align-self:stretch; background:var(--surface); border:2px solid var(--rose-vif); border-radius:var(--radius); padding:12px 14px}
+.msg-info .t{font-size:11.5px; text-transform:uppercase; letter-spacing:.07em; font-weight:700; color:var(--rose); margin-bottom:4px}
+.msg-info .c{font-size:15px; line-height:1.45; white-space:pre-wrap; word-break:break-word}
+.composer{position:sticky; bottom:calc(64px + env(safe-area-inset-bottom,0px)); z-index:15; background:var(--bg); padding:8px 0 6px; margin-top:6px}
+.composer .row{align-items:flex-end}
+.composer textarea{flex:1; min-height:44px; max-height:140px; resize:none; border-radius:22px; padding:11px 15px; line-height:1.35}
+.composer button[type=submit]{flex:none; width:44px; height:44px; padding:0; border-radius:999px; font-size:18px}
+.seg-msg{display:flex; gap:6px; margin-bottom:12px}
+.conv{display:flex; gap:12px; align-items:center; width:100%; text-align:left; background:none; border:0; border-bottom:1px solid var(--line); padding:12px 2px; cursor:pointer; font:inherit; color:inherit}
+.conv:last-child{border-bottom:0}
+.conv .nb{flex:none; min-width:22px; height:22px; padding:0 6px; border-radius:999px; background:var(--rose); color:#fff; font-size:12px; font-weight:700; line-height:22px; text-align:center}
 /* ---------- blocks ---------- */
 main{padding-block:20px 8px; min-height:60vh}
 .section-title{font-size:12px; text-transform:uppercase; letter-spacing:.08em; color:var(--ink-faint); font-weight:700; margin:26px 0 10px}
@@ -285,7 +310,7 @@ const sb = createClient(SUPABASE_URL, SUPABASE_KEY);
 const aujourdhui = new Date();
 const S = {
   session:null, profil:null, params:null,
-  vue:'cours', creneaux:[], adherentes:[], mouvements:[], historique:[], annonces:[], videos:[], notifs:[], lots:[], demandes:[], rappels:[],
+  vue:'cours', creneaux:[], adherentes:[], mouvements:[], historique:[], annonces:[], videos:[], notifs:[], lots:[], demandes:[], rappels:[], msgGroupe:[], msgPrives:[], lectures:{}, conv:null,
   planningVue:'calendrier',
   mois:new Date(aujourdhui.getFullYear(), aujourdhui.getMonth(), 1),
   jourSel:null,
@@ -543,6 +568,174 @@ async function chargerAdherentes(){
   }
 }
 const estAdmin = () => S.profil && S.profil.role === 'admin';
+/* ---------------------------------------------------------- messagerie */
+async function chargerMessages(){
+  const [g, p, l] = await Promise.all([
+    sb.from('messages').select('*').is('conv', null).order('cree_le', { ascending:false }).limit(200),
+    sb.from('messages').select('*').not('conv', 'is', null).order('cree_le', { ascending:false }).limit(estAdmin() ? 1000 : 300),
+    sb.from('lectures').select('*')
+  ]);
+  S.msgGroupe = (g.data || []).reverse();
+  S.msgPrives = (p.data || []).reverse();
+  S.lectures = Object.fromEntries((l.data || []).map(x => [x.conv, x.lu_le]));
+}
+function messagesDe(cle){ return cle === 'groupe' ? S.msgGroupe : S.msgPrives.filter(m => m.conv === cle); }
+function nonLus(cle){
+  const lu = S.lectures[cle] ? new Date(S.lectures[cle]) : new Date(0);
+  return messagesDe(cle).filter(m => !m.supprime && m.auteur !== S.profil.id && new Date(m.cree_le) > lu).length;
+}
+function convsPrivees(){ return estAdmin() ? [...new Set(S.msgPrives.map(m => m.conv))] : [S.profil.id]; }
+function totalNonLus(){
+  if (!S.profil) return 0;
+  return nonLus('groupe') + convsPrivees().reduce((n, c) => n + nonLus(c), 0);
+}
+async function marquerLu(cle){
+  const t = new Date().toISOString();
+  S.lectures[cle] = t;
+  try { await sb.from('lectures').upsert({ adherente_id: S.profil.id, conv: cle, lu_le: t }); } catch {}
+}
+function ajouterMessage(m){
+  const liste = m.conv ? S.msgPrives : S.msgGroupe;
+  const i = liste.findIndex(x => x.id === m.id);
+  if (i >= 0) liste[i] = m; else liste.push(m);
+}
+function abonnerMessages(){
+  if (S.canal || !sb.channel) return;
+  S.canal = sb.channel('messages-live')
+    .on('postgres_changes', { event:'*', schema:'public', table:'messages' }, (p) => {
+      const m = p.new; if (!m || !m.id) return;
+      ajouterMessage(m);
+      const cle = m.conv || 'groupe';
+      const ouvert = S.vue === 'messages' && S.conv === cle && document.visibilityState === 'visible';
+      if (ouvert) marquerLu(cle);
+      rafraichirChat(ouvert);
+    }).subscribe();
+  setInterval(() => { if (S.vue === 'messages' && document.visibilityState === 'visible') chargerMessages().then(() => rafraichirChat(false)); }, 30000);
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState !== 'visible') return;
+    chargerMessages().then(() => { if (S.vue === 'messages' && S.conv) marquerLu(S.conv); rafraichirChat(true); });
+  });
+  if ('serviceWorker' in navigator) navigator.serviceWorker.addEventListener('message', (e) => {
+    if (e.data && e.data.vue === 'messages') ouvrirMessages();
+  });
+}
+function rafraichirChat(versLeBas){
+  const fil = document.getElementById('fil');
+  if (fil && S.vue === 'messages' && S.conv){
+    const basAvant = (window.innerHeight + window.scrollY) >= document.body.scrollHeight - 140;
+    fil.innerHTML = contenuFil(S.conv);
+    const t = document.querySelector('.tab[data-vue="messages"]');
+    if (t){ const n = totalNonLus(); const b = t.querySelector('i.pastille'); if (b && !n) b.remove(); else if (n){ if (b) b.textContent = n > 99 ? '99+' : n; else t.insertAdjacentHTML('beforeend', `<i class="pastille">${n > 99 ? '99+' : n}</i>`); } }
+    if (versLeBas && basAvant) window.scrollTo(0, document.body.scrollHeight);
+    return;
+  }
+  render();
+}
+function ouvrirMessages(conv){
+  S.vue = 'messages'; S.sheet = null; S.notice = null;
+  S.conv = conv || (estAdmin() ? null : 'groupe');
+  if (S.conv) { marquerLu(S.conv); S.scrollBas = true; }
+  render();
+  chargerMessages().then(() => { if (S.conv) { marquerLu(S.conv); S.scrollBas = true; } render(); });
+}
+function libelleJour(d){
+  const k = dayKey(d), auj = new Date(), hier = new Date(); hier.setDate(hier.getDate() - 1);
+  if (k === dayKey(auj)) return 'Aujourd’hui';
+  if (k === dayKey(hier)) return 'Hier';
+  return fDay(d);
+}
+function avatarMsg(m){
+  const morceaux = (m.auteur_nom || '?').split(' ');
+  return avatar({ prenom: morceaux[0], nom: morceaux[1] || '', photo_url: m.auteur_photo });
+}
+function contenuFil(cle){
+  const liste = messagesDe(cle);
+  if (!liste.length) return `<div class="faint" style="text-align:center; padding:34px 12px; line-height:1.5">${
+    cle === 'groupe' ? 'Aucun message pour l’instant.<br>Dis bonjour au groupe 👋'
+    : estAdmin() ? 'Aucun message pour l’instant. Écris-lui ci-dessous.'
+    : 'Écris ici à Marine.<br>Elle seule peut lire cette conversation.'}</div>`;
+  let jour = '';
+  const out = [];
+  for (const m of liste){
+    const d = new Date(m.cree_le), k = dayKey(d);
+    if (k !== jour){ jour = k; out.push(`<div class="jour-sep">${esc(libelleJour(d))}</div>`); }
+    const moi = m.auteur === S.profil.id;
+    const suppr = (moi || estAdmin()) && !m.supprime ? ` · <button data-act="msg-suppr" data-id="${m.id}">Supprimer</button>` : '';
+    if (m.info && !m.supprime){
+      out.push(`<div class="msg-info"><div class="t">📢 Info de Marine</div><div class="c">${esc(m.texte)}</div>
+        <div class="bulle-h" style="padding:0; margin-top:6px">${fTime(d)}${suppr}</div></div>`);
+      continue;
+    }
+    const cls = moi ? 'moi' : (m.auteur_admin ? 'marine' : '');
+    const nom = !moi && (cle === 'groupe' || (estAdmin() && !m.auteur_admin)) ? `<div class="bulle-n">${esc(m.auteur_admin ? 'Marine' : m.auteur_nom)}</div>` : '';
+    out.push(`<div class="bulle-l ${cls}">${moi ? '' : avatarMsg(m)}<div style="min-width:0">
+      <div class="bulle">${nom}${m.supprime ? '<i style="opacity:.65">Message supprimé</i>' : esc(m.texte)}</div>
+      <div class="bulle-h">${fTime(d)}${suppr}</div></div></div>`);
+  }
+  return out.join('');
+}
+function fil(cle){
+  const infoCase = estAdmin() && cle === 'groupe'
+    ? `<label style="display:flex; gap:8px; align-items:center; font-size:13.5px; margin-bottom:6px; cursor:pointer"><input type="checkbox" name="info" style="width:auto; flex:none"><span>📢 Envoyer comme <b>info importante</b> (mise en avant + notification)</span></label>` : '';
+  return `<div class="chat" id="fil">${contenuFil(cle)}</div>
+    <form id="fmsg" class="composer">${infoCase}
+      <div class="row"><textarea id="msg-texte" name="texte" rows="1" maxlength="2000" data-cle="${esc(cle)}" placeholder="${cle === 'groupe' ? 'Message au groupe…' : estAdmin() ? 'Ton message…' : 'Message à Marine…'}"></textarea>
+      <button class="btn" type="submit" aria-label="Envoyer">➤</button></div>
+    </form>`;
+}
+function vueMessages(){
+  if (!estAdmin()){
+    const cle = S.conv === S.profil.id ? S.profil.id : 'groupe';
+    const nG = nonLus('groupe'), nP = nonLus(S.profil.id);
+    return `<div class="seg-msg">
+        <button class="btn ${cle === 'groupe' ? '' : 'soft'} sm grow" data-act="conv" data-conv="groupe">👥 Groupe${nG && cle !== 'groupe' ? ` (${nG})` : ''}</button>
+        <button class="btn ${cle !== 'groupe' ? '' : 'soft'} sm grow" data-act="conv" data-conv="${S.profil.id}">💬 Marine en privé${nP && cle === 'groupe' ? ` (${nP})` : ''}</button>
+      </div>
+      <div class="faint" style="font-size:12.5px; margin:-4px 0 12px">${cle === 'groupe'
+        ? 'Toutes les adhérentes et Marine voient ces messages.' : 'Conversation privée : seule Marine peut la lire.'}</div>
+      ${fil(cle)}`;
+  }
+  if (S.conv){
+    const a = S.adherentes.find(x => x.id === S.conv);
+    const titre = S.conv === 'groupe' ? '👥 Groupe · toutes les adhérentes' : a ? `${esc(a.prenom)} ${esc(a.nom)}` : 'Conversation';
+    return `<div class="row" style="margin-bottom:12px">
+        <button class="btn ghost sm" data-act="conv-retour">← Retour</button>
+        <div class="grow" style="font-weight:700; overflow:hidden; text-overflow:ellipsis; white-space:nowrap">${titre}</div>
+        ${a ? `<button class="btn soft sm" data-act="sheet" data-sheet="adherente" data-id="${a.id}">Fiche</button>` : ''}
+      </div>
+      ${S.conv === 'groupe' ? '<div class="faint" style="font-size:12.5px; margin:-4px 0 12px">Tout le monde voit ces messages. Coche « info importante » pour mettre un message en avant.</div>' : ''}
+      ${fil(S.conv)}`;
+  }
+  const dernier = (liste) => liste.filter(m => !m.supprime).slice(-1)[0];
+  const apercu = (m) => m ? `${m.auteur === S.profil.id ? 'Toi : ' : ''}${esc(m.texte.slice(0, 70))}${m.texte.length > 70 ? '…' : ''}` : 'Aucun message';
+  const dg = dernier(S.msgGroupe), nG = nonLus('groupe');
+  const convs = convsPrivees().map(c => ({ c, a: S.adherentes.find(x => x.id === c), m: dernier(messagesDe(c)), n: nonLus(c) }))
+    .filter(x => x.a).sort((x, y) => new Date(y.m ? y.m.cree_le : 0) - new Date(x.m ? x.m.cree_le : 0));
+  const actives = S.adherentes.filter(a => a.statut === 'active' && a.role !== 'admin');
+  return `<div class="section-title">Messagerie</div>
+    <div class="card" style="padding:4px 14px">
+      <button class="conv" data-act="conv" data-conv="groupe">
+        <div class="avatar" style="width:42px; height:42px; font-size:18px">👥</div>
+        <div class="grow"><div style="font-weight:700">Groupe · toutes les adhérentes</div>
+          <div class="faint" style="font-size:13px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap">${dg ? esc(dg.auteur === S.profil.id ? 'Toi' : dg.auteur_nom) + ' : ' + esc(dg.texte.slice(0, 60)) : 'Envoie une info ou un message à tout le monde'}</div></div>
+        ${nG ? `<span class="nb">${nG}</span>` : ''}
+      </button>
+    </div>
+    <div class="section-title">Conversations privées</div>
+    <div class="card" style="padding:12px 14px; margin-bottom:10px">
+      <label class="faint" for="nouvelle-conv" style="font-size:13px">Écrire à une adhérente</label>
+      <select id="nouvelle-conv" style="margin-top:6px"><option value="">Choisir…</option>
+        ${actives.map(a => `<option value="${a.id}">${esc(a.prenom)} ${esc(a.nom)}</option>`).join('')}</select>
+    </div>
+    ${convs.length ? `<div class="card" style="padding:4px 14px">${convs.map(x => `
+      <button class="conv" data-act="conv" data-conv="${x.c}">
+        ${avatar(x.a)}
+        <div class="grow" style="min-width:0"><div style="font-weight:${x.n ? 700 : 600}">${esc(x.a.prenom)} ${esc(x.a.nom)}</div>
+          <div class="faint" style="font-size:13px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap">${apercu(x.m)}</div></div>
+        <div style="text-align:right; flex:none"><div class="faint" style="font-size:11.5px">${x.m ? esc(libelleJour(new Date(x.m.cree_le)) === 'Aujourd’hui' ? fTime(new Date(x.m.cree_le)) : fCourt(new Date(x.m.cree_le))) : ''}</div>
+          ${x.n ? `<span class="nb" style="display:inline-block; margin-top:4px">${x.n}</span>` : ''}</div>
+      </button>`).join('')}</div>` : '<div class="faint" style="text-align:center; padding:10px">Aucune conversation privée pour l’instant.</div>'}`;
+}
 
 function annoncesActives(){
   const auj = dayKey(new Date());
@@ -575,8 +768,17 @@ function render(){
   const root = $('#root');
   if (!S.session) { root.innerHTML = vueAuth(); return; }
   if (!S.profil)  { root.innerHTML = '<div class="loading">Chargement de ton compte…</div>'; return; }
+  const ta = document.getElementById('msg-texte');
+  const brouillon = ta ? { cle: ta.dataset.cle, v: ta.value, focus: document.activeElement === ta } : null;
   root.innerHTML = coque();
+  const nt = document.getElementById('msg-texte');
+  if (nt && brouillon && brouillon.cle === nt.dataset.cle){
+    nt.value = brouillon.v; ajusterZone(nt);
+    if (brouillon.focus){ nt.focus(); nt.setSelectionRange(nt.value.length, nt.value.length); }
+  }
+  if (S.scrollBas){ S.scrollBas = false; requestAnimationFrame(() => window.scrollTo(0, document.body.scrollHeight)); }
 }
+function ajusterZone(t){ t.style.height = 'auto'; t.style.height = Math.min(140, t.scrollHeight + 2) + 'px'; }
 
 function coque(){
   const admin = estAdmin();
@@ -605,11 +807,12 @@ function coque(){
 
 function barreOnglets(admin){
   const items = admin
-    ? [['planning','Planning',ICO.cal],['adherentes','Adhérentes',ICO.users],['videos','Vidéos',ICO.play],['rappels','Rappels',ICO.bell],['reglages','Réglages',ICO.gear]]
-    : [['cours','Les cours',ICO.cal],['mes','Mes cours',ICO.check],...(S.profil.acces_videos?[['videos','Vidéos',ICO.play]]:[]),['compte','Mon compte',ICO.user]];
+    ? [['planning','Planning',ICO.cal],['adherentes','Adhérentes',ICO.users],['messages','Messages',ICO.chat],['videos','Vidéos',ICO.play],['rappels','Rappels',ICO.bell],['reglages','Réglages',ICO.gear]]
+    : [['cours','Les cours',ICO.cal],['mes','Mes cours',ICO.check],['messages','Messages',ICO.chat],...(S.profil.acces_videos?[['videos','Vidéos',ICO.play]]:[]),['compte','Mon compte',ICO.user]];
+  const nMsg = totalNonLus();
   if (S.profil.statut !== 'active' && !admin) return '';
   return `<nav class="tabs"><div class="tabs-in">${items.map(([k,l,i])=>`
-    <button class="tab" data-act="vue" data-vue="${k}" ${S.vue===k?'aria-current="page"':''}>${i}<span>${l}</span></button>`).join('')}
+    <button class="tab" data-act="vue" data-vue="${k}" ${S.vue===k?'aria-current="page"':''}>${i}<span>${l}</span>${k==='messages' && nMsg ? `<i class="pastille">${nMsg > 99 ? '99+' : nMsg}</i>` : ''}</button>`).join('')}
   </div></nav>`;
 }
 
@@ -621,6 +824,7 @@ const ICO = {
   gear:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.2"/><path d="M12 2.8v2.4M12 18.8v2.4M4.3 7.4l2 1.2M17.7 15.4l2 1.2M4.3 16.6l2-1.2M17.7 8.6l2-1.2"/></svg>',
   bell:'<svg viewBox="0 0 24 24"><path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15Z"/><path d="M10 20.5a2 2 0 0 0 4 0"/></svg>',
   play:'<svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M10 9.5v5l4.5-2.5Z"/></svg>',
+  chat:'<svg viewBox="0 0 24 24"><path d="M4 5h16v11H9l-5 4Z"/><path d="M8 9.5h8M8 12.5h5"/></svg>',
   leaf:'<svg viewBox="0 0 24 24"><path d="M4 20c0-8 5-15 16-16 1 11-5 16-12 16-2 0-4-.6-4-.6Z"/><path d="M9 20c1-5 4-9 8-11"/></svg>',
   empty:'<svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4M9 16h6"/></svg>'
 };
@@ -686,6 +890,7 @@ const vueSuspendu = () => ecranSimple(
 /* ---------------------------------------------------------- espace adhérente */
 function vueAdherente(){
   if (S.vue === 'mes')    return vueMesCours();
+  if (S.vue === 'messages') return vueMessages();
   if (S.vue === 'videos' && S.profil.acces_videos) return vueVideos();
   if (S.vue === 'compte') return vueCompte();
   return vueCoursDispo();
@@ -892,6 +1097,7 @@ function vueAdmin(){
   if (S.vue === 'reglages')   return vueAdminReglages();
   if (S.vue === 'videos')     return vueAdminVideos();
   if (S.vue === 'rappels')    return vueAdminRappels();
+  if (S.vue === 'messages')   return vueMessages();
   return vueAdminPlanning();
 }
 
@@ -1383,6 +1589,7 @@ function detailAdherente(a){
     </div>
     ${blocHistorique()}
     <div style="margin-top:18px" class="stack">
+      ${a.role !== 'admin' ? `<button class="btn full" data-act="ecrire-a" data-id="${a.id}">💬 Envoyer un message privé</button>` : ''}
       ${a.statut==='active'
         ? `<button class="btn ghost full" data-act="statut" data-id="${a.id}" data-val="inactive">Mettre le compte en pause</button>`
         : `<button class="btn full" data-act="statut" data-id="${a.id}" data-val="active">Réactiver le compte</button>`}
@@ -1398,7 +1605,7 @@ document.addEventListener('click', async (e) => {
 
   switch(act){
     case 'mode': S.authMode = el.dataset.mode; S.notice=null; render(); break;
-    case 'vue': S.vue = el.dataset.vue; S.notice=null; render(); if(S.vue==='compte') Promise.all([chargerMouvements(), chargerLots(), chargerDemandes()]).then(render); if(S.vue==='adherentes') chargerDemandes().then(render); if(S.vue==='mes') chargerHistorique().then(render); if(S.vue==='videos') chargerVideos().then(render); if(S.vue==='rappels') chargerRappels().then(render); break;
+    case 'vue': if (el.dataset.vue === 'messages') { ouvrirMessages(); break; } S.vue = el.dataset.vue; S.notice=null; render(); if(S.vue==='compte') Promise.all([chargerMouvements(), chargerLots(), chargerDemandes()]).then(render); if(S.vue==='adherentes') chargerDemandes().then(render); if(S.vue==='mes') chargerHistorique().then(render); if(S.vue==='videos') chargerVideos().then(render); if(S.vue==='rappels') chargerRappels().then(render); break;
     case 'fermer': case 'fermer-bg': S.sheet = null; render(); break;
     case 'deconnexion': await sb.auth.signOut(); S.session=null; S.profil=null; render(); break;
     case 'rafraichir': await agir(async()=>{ await chargerProfil(); await chargerCreneaux(); await chargerAnnonces(); }); break;
@@ -1531,6 +1738,17 @@ document.addEventListener('click', async (e) => {
       await rpc('admin_tester_rappel', { p_id: el.dataset.id });
       await chargerNotifs(); flash('ok','Test envoyé : regarde la cloche (et ton téléphone si les notifications sont activées).');
     }); break;
+    case 'conv': S.conv = el.dataset.conv; marquerLu(S.conv); S.scrollBas = true; render(); break;
+    case 'conv-retour': S.conv = null; render(); window.scrollTo(0, 0); break;
+    case 'ecrire-a': ouvrirMessages(el.dataset.id); break;
+    case 'msg-suppr': {
+      if (!confirm('Supprimer ce message ?')) break;
+      const { error } = await sb.from('messages').update({ supprime:true }).eq('id', el.dataset.id);
+      if (error) { flash('err', messageErreur(error)); break; }
+      const m = [...S.msgGroupe, ...S.msgPrives].find(x => x.id === el.dataset.id);
+      if (m) { m.supprime = true; m.texte = ''; }
+      rafraichirChat(false); break;
+    }
     case 'h-onglet': if (S.sheet) { S.sheet.hOnglet = el.dataset.v; render(); } break;
     case 'suppr-lot': {
       if (!confirm('Retirer ces séances du compte de la cliente ?')) break;
@@ -1661,6 +1879,11 @@ document.addEventListener('click', async (e) => {
   }
 });
 
+document.addEventListener('input', (e)=>{ if (e.target.id === 'msg-texte') ajusterZone(e.target); });
+document.addEventListener('change', (e)=>{ if (e.target.id === 'nouvelle-conv' && e.target.value) { S.conv = e.target.value; marquerLu(S.conv); S.scrollBas = true; render(); } });
+document.addEventListener('keydown', (e)=>{
+  if (e.target.id === 'msg-texte' && e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); e.target.form.requestSubmit(); }
+});
 document.addEventListener('input', (e)=>{
   if (e.target.dataset.act === 'recherche'){ S.recherche = e.target.value; const v = e.target.value; render();
     const f = $('#q'); if (f){ f.focus(); f.setSelectionRange(v.length, v.length); } }
@@ -1692,6 +1915,21 @@ document.addEventListener('submit', async (e) => {
   e.preventDefault();
   const f = e.target;
   const d = Object.fromEntries(new FormData(f));
+
+  if (f.id === 'fmsg') {
+    const texte = (d.texte || '').trim();
+    if (!texte || S.envoi) return;
+    const cle = S.conv, ta = document.getElementById('msg-texte');
+    S.envoi = true; if (ta) { ta.value = ''; ajusterZone(ta); }
+    const { data, error } = await sb.from('messages').insert({ conv: cle === 'groupe' ? null : cle, texte, info: !!d.info }).select().single();
+    S.envoi = false;
+    if (error) { if (ta) ta.value = texte; flash('err', messageErreur(error)); return; }
+    if (data) ajouterMessage(data);
+    marquerLu(cle);
+    const cb = f.querySelector('input[name=info]'); if (cb) cb.checked = false;
+    rafraichirChat(false); window.scrollTo(0, document.body.scrollHeight);
+    return;
+  }
 
   if (f.id === 'fauth') return agir(async()=>{
     if (S.authMode === 'reset'){
@@ -1803,8 +2041,12 @@ async function demarrer(session){
     if (estAdmin()) await chargerAdherentes(); else await Promise.all([chargerHistorique(), chargerLots()]);
     if (estAdmin() || S.profil.acces_videos) await chargerVideos();
     await chargerDemandes();
+    try { await chargerMessages(); abonnerMessages(); } catch {}
   }
   await Promise.all([chargerNotifs(), etatPush()]);
+  if (new URLSearchParams(location.search).get('vue') === 'messages' && (S.profil.statut === 'active' || estAdmin())) {
+    history.replaceState(null, '', location.pathname); ouvrirMessages(); return;
+  }
   render();
 }
 
