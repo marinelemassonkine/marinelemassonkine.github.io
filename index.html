@@ -354,7 +354,7 @@ const SUPABASE_KEY = 'sb_publishable_bS-fbBuW7ru_xDywDv_A2A_xHGRGUeN';
 const sb = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 /* ------------------------------------------------------------------ état */
-const VERSION = '2026-09-22-r46';
+const VERSION = '2026-09-22-r47';
 const aujourdhui = new Date();
 const S = {
   session:null, profil:null, params:null,
@@ -832,17 +832,33 @@ function fil(cle){
       <button class="btn" type="submit" aria-label="Envoyer">➤</button></div>
     </form>`;
 }
+function carteContact(){
+  const tel = (S.params && S.params.telephone) || '';
+  const num = tel.replace(/[^\d+]/g, '');
+  const joli = num.replace(/^\+33/, '0').replace(/(\d{2})(?=\d)/g, '$1 ').trim();
+  if (!num) return '<div class="card faint">Aucun numéro renseigné pour le moment.</div>';
+  return `<div class="card stack" style="align-items:center; text-align:center; padding:22px 16px">
+      <div class="logo grand" style="margin:0 0 4px">${ICO.lotus}</div>
+      <div><div style="font-family:Fraunces,serif; font-size:20px">Appeler Marine</div>
+        <div class="aide" style="margin-top:6px; line-height:1.5">Pour une question, un besoin particulier ou une urgence.<br>Pense aux messages pour ce qui n’est pas pressé 😊</div></div>
+      <div style="font-family:Fraunces,serif; font-size:24px; color:var(--rose); letter-spacing:.5px">${esc(joli)}</div>
+      <a class="btn full" href="tel:${esc(num)}" style="text-decoration:none; text-align:center">📞 Appeler ${esc(joli)}</a>
+      <a class="btn soft full" href="sms:${esc(num)}" style="text-decoration:none; text-align:center">✉️ Envoyer un SMS</a>
+    </div>`;
+}
 function vueMessages(){
   if (!estAdmin()){
-    const cle = S.conv === S.profil.id ? S.profil.id : 'groupe';
+    const contact = S.conv === 'contact';
+    const cle = contact ? 'contact' : (S.conv === S.profil.id ? S.profil.id : 'groupe');
     const nG = nonLus('groupe'), nP = nonLus(S.profil.id);
     return `<div class="seg-msg">
         <button class="btn ${cle === 'groupe' ? '' : 'soft'} sm grow" data-act="conv" data-conv="groupe">👥 Groupe${nG && cle !== 'groupe' ? ` (${nG})` : ''}</button>
-        <button class="btn ${cle !== 'groupe' ? '' : 'soft'} sm grow" data-act="conv" data-conv="${S.profil.id}">💬 Marine en privé${nP && cle === 'groupe' ? ` (${nP})` : ''}</button>
+        <button class="btn ${cle === S.profil.id ? '' : 'soft'} sm grow" data-act="conv" data-conv="${S.profil.id}">💬 Privé${nP && cle !== S.profil.id ? ` (${nP})` : ''}</button>
+        <button class="btn ${contact ? '' : 'soft'} sm grow" data-act="conv" data-conv="contact">📞 Appeler</button>
       </div>
-      <div class="faint" style="font-size:12.5px; margin:-4px 0 12px">${cle === 'groupe'
+      ${contact ? carteContact() : `<div class="faint" style="font-size:12.5px; margin:-4px 0 12px">${cle === 'groupe'
         ? 'Toutes les adhérentes et Marine voient ces messages.' : 'Conversation privée : seule Marine peut la lire.'}</div>
-      ${fil(cle)}`;
+      ${fil(cle)}`}`;
   }
   if (S.conv){
     const a = S.adherentes.find(x => x.id === S.conv);
@@ -1660,6 +1676,9 @@ function vueAdminReglages(){
     <div class="section-title">Réglages du cabinet</div>
     <form id="freglages" class="card">
       <div class="field"><label for="r-nom">Nom affiché</label><input id="r-nom" name="nom_cabinet" value="${esc(S.params.nom_cabinet)}" required></div>
+      <div class="field"><label for="r-tel">Téléphone visible par les adhérentes</label>
+        <input id="r-tel" name="telephone" type="tel" value="${esc(S.params.telephone||'')}" placeholder="06 04 06 32 76">
+        <div class="aide" style="margin-top:6px">Il apparaît dans Messages → Appeler, avec un bouton d’appel direct. Laisse vide pour le masquer.</div></div>
       <div class="field"><label for="r-delai">Annulation sans perdre la séance</label>
         <div class="row"><input id="r-delai" name="delai" type="number" min="0" max="168" value="${S.params.delai_annulation_h}" required style="width:100px">
           <span class="aide" style="flex:1">heures avant le cours</span></div>
@@ -2337,6 +2356,7 @@ document.addEventListener('submit', async (e) => {
   if (f.id === 'freglages') return agir(async()=>{
     const { error } = await sb.from('parametres').update({
       nom_cabinet: d.nom_cabinet.trim(),
+      telephone: (d.telephone||'').trim(),
       delai_annulation_h: Number(d.delai),
       min_participants: Number(d.min_participants),
       delai_min_h: Number(d.delai_min)
