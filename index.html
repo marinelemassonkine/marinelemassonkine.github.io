@@ -358,7 +358,7 @@ const SUPABASE_KEY = 'sb_publishable_bS-fbBuW7ru_xDywDv_A2A_xHGRGUeN';
 const sb = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 /* ------------------------------------------------------------------ état */
-const VERSION = '2026-09-22-r50';
+const VERSION = '2026-09-22-r51';
 const aujourdhui = new Date();
 const S = {
   session:null, profil:null, params:null,
@@ -1709,6 +1709,11 @@ function vueAdminReglages(){
           <option value="info">Information</option>
           <option value="important">Important (mise en avant)</option>
         </select></div>
+      <label style="display:flex; gap:9px; align-items:flex-start; cursor:pointer; margin-bottom:13px">
+        <input type="checkbox" name="notifier" value="1" checked style="width:auto; flex:none; margin-top:2px">
+        <span style="font-size:13.5px; line-height:1.45">🔔 Envoyer une notification sur le téléphone de chaque adhérente<br>
+          <span class="aide">Elles la reçoivent tout de suite, même appli fermée. Décoche pour afficher le message sans les déranger.</span></span>
+      </label>
       <button class="btn full" type="submit" ${S.busy?'disabled':''}>Publier l’annonce</button>
     </form>
 
@@ -2466,11 +2471,16 @@ document.addEventListener('submit', async (e) => {
     const texte = d.texte.trim();
     if (!texte) throw new Error('Écris le message de l’annonce.');
     if (d.debut && d.fin && d.fin < d.debut) throw new Error('La date de fin est avant la date de début.');
+    const prevenir = !!d.notifier;
     const { error } = await sb.from('annonces').insert({
-      texte, ton: d.ton, debut: d.debut || null, fin: d.fin || null
+      texte, ton: d.ton, debut: d.debut || null, fin: d.fin || null, notifier: prevenir
     });
     if (error) throw error;
-    await chargerAnnonces(); flash('ok','Annonce publiée.');
+    await chargerAnnonces();
+    const plusTard = d.debut && d.debut > dayKey(new Date());
+    flash('ok', !prevenir ? 'Annonce publiée (sans notification).'
+      : plusTard ? 'Annonce programmée. La notification partira quand elle s’affichera.'
+      : 'Annonce publiée · notification envoyée à toutes les adhérentes 🔔');
   });
 
   if (f.id === 'fcreneau') return agir(async()=>{
