@@ -358,7 +358,7 @@ const SUPABASE_KEY = 'sb_publishable_bS-fbBuW7ru_xDywDv_A2A_xHGRGUeN';
 const sb = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 /* ------------------------------------------------------------------ état */
-const VERSION = '2026-09-22-r49';
+const VERSION = '2026-09-22-r50';
 const aujourdhui = new Date();
 const S = {
   session:null, profil:null, params:null,
@@ -1204,6 +1204,24 @@ function carteCreneau(c, admin, avecDate){
   </div>`;
 }
 
+function feuilleAnnuler(c){
+  if (!c) return '<div class="faint">Cours introuvable.</div>';
+  const d = new Date(c.debut);
+  const n = c.places_prises || 0, att = c.nb_attente || 0;
+  return `<form id="fannuler" class="stack" data-id="${c.id}">
+      <div class="card stack">
+        <div style="font-weight:700; text-transform:capitalize">${esc(fDay(d))} · ${fTime(d)}</div>
+        <div class="faint" style="line-height:1.5">${n ? `${n} inscrite${n>1?'s':''}${att?` et ${att} en attente`:''} ${n>1||att?'vont être prévenues et leurs séances rendues':'va être prévenue et sa séance rendue'}.` : 'Personne n’est inscrite à ce cours.'}</div>
+      </div>
+      <div class="card">
+        <div class="field" style="margin:0"><label for="an-msg">Ton message aux adhérentes</label>
+          <textarea id="an-msg" name="message" rows="4" maxlength="600" placeholder="Ex. : Coucou les filles, désolée je dois annuler le cours, j’ai un souci. Vos séances vous sont rendues, on se retrouve la semaine prochaine ❤️"></textarea>
+          <div class="aide" style="margin-top:6px">Il part tel quel dans la notification, suivi du rappel « Le cours du ${esc(fCourt(d))} est annulé. Ta séance t’a été rendue. » Laisse vide pour n’envoyer que ce rappel.</div></div>
+      </div>
+      <button class="btn dangerish full" type="submit" ${S.busy?'disabled':''}>Annuler le cours et prévenir tout le monde</button>
+      <button class="btn soft full" type="button" data-act="fermer">Revenir en arrière</button>
+    </form>`;
+}
 function boiteSuggestions(c){
   const liste = (c.besoins || []).filter(x => (x.texte||'').trim());
   if (!liste.length) return '';
@@ -1737,6 +1755,8 @@ function feuille(){
   if (S.sheet.type === 'nouveau'){ titre = 'Nouveau cours'; corps = formNouveauCreneau(); }
   if (S.sheet.type === 'notifs'){ titre = 'Notifications'; corps = listeNotifs(); }
   if (S.sheet.type === 'menu'){ titre = 'Menu'; corps = feuilleMenu(); }
+  if (S.sheet.type === 'annuler'){ const c = S.creneaux.find(x=>x.id===S.sheet.id);
+    titre = 'Annuler le cours'; corps = feuilleAnnuler(c); }
   if (S.sheet.type === 'besoin'){ const c = S.creneaux.find(x=>x.id===S.sheet.id);
     titre = c ? `Cours du ${fCourt(new Date(c.debut))} · ${fTime(new Date(c.debut))}` : 'Mon besoin'; corps = feuilleBesoin(c); }
   if (S.sheet.type === 'rappel'){ const r = S.rappels.find(x=>x.id===S.sheet.id); titre = r ? 'Modifier le rappel' : 'Nouveau rappel'; corps = formRappel(r); }
@@ -2283,14 +2303,7 @@ document.addEventListener('click', async (e) => {
       }); break;
     }
 
-    case 'annuler-cours': {
-      if (!confirm('Annuler ce cours ? Toutes les inscrites seront désinscrites et leur séance rendue.')) break;
-      await agir(async()=>{
-        const r = await rpc('admin_annuler_creneau', { p_creneau: el.dataset.id });
-        await chargerCreneaux(); S.sheet = null;
-        flash('ok', `Cours annulé · ${r.remboursees} séance${r.remboursees>1?'s':''} rendue${r.remboursees>1?'s':''}.`);
-      }); break;
-    }
+    case 'annuler-cours': S.sheet = { type:'annuler', id: el.dataset.id }; render(); break;
 
     case 'copier': try { await navigator.clipboard.writeText(el.dataset.lien); flash('ok','Lien copié.'); } catch { flash('err','Copie impossible — sélectionne le lien à la main.'); } break;
     case 'partager': if (navigator.share) { try { await navigator.share({title:S.params.nom_cabinet, text:'Réserve tes cours de renforcement musculaire ici :', url:el.dataset.lien}); } catch {} } else { try { await navigator.clipboard.writeText(el.dataset.lien); flash('ok','Lien copié.'); } catch {} } break;
@@ -2365,6 +2378,12 @@ document.addEventListener('submit', async (e) => {
     rafraichirChat(false); window.scrollTo(0, document.body.scrollHeight);
     return;
   }
+
+  if (f.id === 'fannuler') return agir(async()=>{
+    const r = await rpc('admin_annuler_creneau', { p_creneau: f.dataset.id, p_message: (d.message||'').trim() });
+    await chargerCreneaux(); S.sheet = null;
+    flash('ok', `Cours annulé · ${r.remboursees} séance${r.remboursees>1?'s':''} rendue${r.remboursees>1?'s':''} · tout le monde est prévenu.`);
+  });
 
   if (f.id === 'fbesoin') return agir(async()=>{
     await rpc('maj_besoin', { p_creneau: f.dataset.id, p_texte: (d.texte||'').trim() });
