@@ -144,7 +144,7 @@ h1,h2,h3{font-family:"Fraunces", ui-serif, Georgia, serif; font-weight:500; marg
 .conv:last-child{border-bottom:0}
 .conv .nb{flex:none; min-width:22px; height:22px; padding:0 6px; border-radius:999px; background:var(--rose); color:#fff; font-size:12px; font-weight:700; line-height:22px; text-align:center}
 /* ---------- blocks ---------- */
-main{padding-block:20px 8px; min-height:60vh}
+main{padding-block:20px 24px; min-height:60vh}
 .section-title{font-size:12px; text-transform:uppercase; letter-spacing:.08em; color:var(--ink-faint); font-weight:700; margin:26px 0 10px}
 .section-title:first-child{margin-top:0}
 
@@ -250,7 +250,16 @@ input, select, textarea{
 textarea{resize:vertical; min-height:64px}
 .field{margin-bottom:13px}
 .fields-2{display:grid; grid-template-columns:1fr 1fr; gap:11px}
-@media (max-width:420px){ .fields-2{grid-template-columns:1fr} }
+@media (max-width:340px){ .fields-2{grid-template-columns:1fr} }
+.fields-2{min-width:0} .fields-2 .field{min-width:0}
+.fields-2 input, .fields-2 select{width:100%; min-width:0}
+input[type=date]{min-width:0}
+.fields-2 .field label{white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+.ligne{display:flex; gap:10px; align-items:flex-start; padding:12px 0; border-bottom:1px solid var(--line)}
+.ligne:first-child{padding-top:0} .ligne:last-child{border-bottom:0; padding-bottom:0}
+.ligne-actions{flex:none; display:flex; flex-direction:column; align-items:flex-end; gap:6px}
+.card + .form-suite{margin-top:10px}
+.aide{font-size:12.5px; line-height:1.45; color:var(--ink-faint)}
 
 .notice{border-radius:var(--radius-sm); padding:11px 13px; font-size:14px; margin-bottom:14px; line-height:1.45}
 .notice.err{background:var(--danger-soft); color:var(--danger)}
@@ -315,7 +324,7 @@ const SUPABASE_KEY = 'sb_publishable_bS-fbBuW7ru_xDywDv_A2A_xHGRGUeN';
 const sb = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 /* ------------------------------------------------------------------ état */
-const VERSION = '2026-09-22-r30';
+const VERSION = '2026-09-22-r31';
 const aujourdhui = new Date();
 const S = {
   session:null, profil:null, params:null,
@@ -1486,52 +1495,55 @@ function vueAdminReglages(){
         <button class="btn soft grow" data-act="copier" data-lien="${esc(lien)}">Copier le lien</button>
         <button class="btn grow" data-act="partager" data-lien="${esc(lien)}">Partager</button>
       </div>
-      <div class="faint">Envoie-le par SMS ou WhatsApp. Chaque adhérente crée son compte, tu acceptes ou refuses sa demande, puis tu lui attribues ses séances.</div>
+      <div class="aide">Envoie-le par SMS ou WhatsApp. Chaque adhérente crée son compte, tu acceptes ou refuses sa demande, puis tu lui attribues ses séances.</div>
     </div>
 
     <div class="section-title">Annonces affichées aux adhérentes</div>
     <div class="card">${S.annonces.length ? S.annonces.map(a=>{
       const active = (!a.debut || a.debut <= auj) && (!a.fin || a.fin >= auj);
-      return `<div class="person">
+      return `<div class="ligne">
         <div class="grow">
-          <div style="font-size:14px; line-height:1.4">${esc(a.texte)}</div>
-          <div class="faint">${esc(periodeAnnonce(a))} · ${a.ton==='important'?'importante':'information'}${active?'':' · pas encore / terminée'}</div>
+          <div style="font-size:14px; line-height:1.45">${esc(a.texte)}</div>
+          <div class="faint" style="margin-top:3px">${esc(periodeAnnonce(a))} · ${a.ton==='important'?'importante':'information'}</div>
         </div>
-        ${active ? '<span class="badge ok">Affichée</span>' : '<span class="badge neutral">Inactive</span>'}
-        <button class="btn dangerish xs" data-act="suppr-annonce" data-id="${a.id}">Retirer</button>
+        <div class="ligne-actions">
+          ${active ? '<span class="badge ok">Affichée</span>' : '<span class="badge neutral">Inactive</span>'}
+          <button class="btn dangerish xs" data-act="suppr-annonce" data-id="${a.id}">Retirer</button>
+        </div>
       </div>`;
     }).join('') : '<div class="faint">Aucune annonce pour le moment.</div>'}</div>
 
-    <form id="fannonce" class="card" style="margin-top:10px">
+    <form id="fannonce" class="card form-suite">
       <div class="field"><label for="an-texte">Nouvelle annonce</label>
-        <textarea id="an-texte" name="texte" placeholder="Ex. : vacances du 07/07 au 07/08, pas de cours durant cette période" required></textarea></div>
+        <textarea id="an-texte" name="texte" rows="3" placeholder="Ex. : vacances du 07/07 au 07/08, pas de cours durant cette période" required></textarea></div>
       <div class="fields-2">
-        <div class="field"><label for="an-du">Affichée à partir du (facultatif)</label><input id="an-du" name="debut" type="date"></div>
-        <div class="field"><label for="an-au">Jusqu’au (facultatif)</label><input id="an-au" name="fin" type="date"></div>
+        <div class="field"><label for="an-du">À partir du</label><input id="an-du" name="debut" type="date"></div>
+        <div class="field"><label for="an-au">Jusqu’au</label><input id="an-au" name="fin" type="date"></div>
       </div>
+      <div class="aide" style="margin:-6px 0 13px">Dates facultatives : sans rien, l’annonce s’affiche tout de suite et reste jusqu’à ce que tu la retires.</div>
       <div class="field"><label for="an-ton">Ton du message</label>
         <select id="an-ton" name="ton">
           <option value="info">Information</option>
           <option value="important">Important (mise en avant)</option>
         </select></div>
       <button class="btn full" type="submit" ${S.busy?'disabled':''}>Publier l’annonce</button>
-      <div class="faint" style="margin-top:10px">Sans dates, l’annonce reste affichée jusqu’à ce que tu la retires.</div>
     </form>
 
     <div class="section-title">Réglages du cabinet</div>
     <form id="freglages" class="card">
       <div class="field"><label for="r-nom">Nom affiché</label><input id="r-nom" name="nom_cabinet" value="${esc(S.params.nom_cabinet)}" required></div>
-      <div class="field"><label for="r-delai">Annulation sans perdre la séance (heures avant le cours)</label>
-        <input id="r-delai" name="delai" type="number" min="0" max="168" value="${S.params.delai_annulation_h}" required>
-        <div class="faint" style="margin-top:6px">Au-delà de ce délai, une annulation rend la séance. En deçà — ou en cas d’absence — la séance est décomptée.</div></div>
+      <div class="field"><label for="r-delai">Annulation sans perdre la séance</label>
+        <div class="row"><input id="r-delai" name="delai" type="number" min="0" max="168" value="${S.params.delai_annulation_h}" required style="width:100px">
+          <span class="aide" style="flex:1">heures avant le cours</span></div>
+        <div class="aide" style="margin-top:7px">Au-delà de ce délai, une annulation rend la séance. En deçà — ou en cas d’absence — la séance est décomptée.</div></div>
       <div class="fields-2">
-        <div class="field"><label for="r-min">Minimum d’inscrites par cours</label>
+        <div class="field"><label for="r-min">Minimum d’inscrites</label>
           <input id="r-min" name="min_participants" type="number" min="0" max="50" value="${S.params.min_participants ?? 2}" required></div>
-        <div class="field"><label for="r-dmin">Vérifié … heures avant</label>
+        <div class="field"><label for="r-dmin">Vérifié (h avant)</label>
           <input id="r-dmin" name="delai_min" type="number" min="1" max="168" value="${S.params.delai_min_h ?? 24}" required></div>
       </div>
-      <div class="faint" style="margin:-4px 0 12px">S’il y a moins d’inscrites que ce minimum à ce moment-là, le cours est annulé automatiquement, les crédits sont rendus et tout le monde est prévenu. Mets 0 pour désactiver.</div>
-      <div class="notice info" style="margin:0 0 14px">Les rappels automatiques (veille du cours, cours de la semaine, relances…) se gèrent maintenant dans l’onglet <b>Rappels</b>.</div>
+      <div class="aide" style="margin:-6px 0 14px">S’il y a moins d’inscrites que ce minimum à ce moment-là, le cours est annulé automatiquement, les séances sont rendues et tout le monde est prévenu. Mets 0 pour désactiver.</div>
+      <div class="notice info" style="margin:0 0 14px">Les rappels automatiques (veille du cours, cours de la semaine, relances…) se gèrent dans l’onglet <b>Rappels</b>.</div>
       <button class="btn full" type="submit" ${S.busy?'disabled':''}>Enregistrer</button>
     </form>
 
