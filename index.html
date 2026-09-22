@@ -253,7 +253,8 @@ textarea{resize:vertical; min-height:64px}
 @media (max-width:340px){ .fields-2{grid-template-columns:1fr} }
 .fields-2{min-width:0} .fields-2 .field{min-width:0}
 .fields-2 input, .fields-2 select{width:100%; min-width:0}
-input[type=date]{min-width:0}
+input[type=date]{min-width:0; max-width:100%; box-sizing:border-box; -webkit-appearance:none; appearance:none}
+input, select, textarea{box-sizing:border-box; max-width:100%}
 .fields-2 .field label{white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
 .ligne{display:flex; gap:10px; align-items:flex-start; padding:12px 0; border-bottom:1px solid var(--line)}
 .ligne:first-child{padding-top:0} .ligne:last-child{border-bottom:0; padding-bottom:0}
@@ -324,7 +325,7 @@ const SUPABASE_KEY = 'sb_publishable_bS-fbBuW7ru_xDywDv_A2A_xHGRGUeN';
 const sb = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 /* ------------------------------------------------------------------ état */
-const VERSION = '2026-09-22-r31';
+const VERSION = '2026-09-22-r32';
 const aujourdhui = new Date();
 const S = {
   session:null, profil:null, params:null,
@@ -1516,10 +1517,8 @@ function vueAdminReglages(){
     <form id="fannonce" class="card form-suite">
       <div class="field"><label for="an-texte">Nouvelle annonce</label>
         <textarea id="an-texte" name="texte" rows="3" placeholder="Ex. : vacances du 07/07 au 07/08, pas de cours durant cette période" required></textarea></div>
-      <div class="fields-2">
-        <div class="field"><label for="an-du">À partir du</label><input id="an-du" name="debut" type="date"></div>
-        <div class="field"><label for="an-au">Jusqu’au</label><input id="an-au" name="fin" type="date"></div>
-      </div>
+      <div class="field"><label for="an-du">Affichée à partir du</label><input id="an-du" name="debut" type="date"></div>
+      <div class="field"><label for="an-au">Jusqu’au</label><input id="an-au" name="fin" type="date"></div>
       <div class="aide" style="margin:-6px 0 13px">Dates facultatives : sans rien, l’annonce s’affiche tout de suite et reste jusqu’à ce que tu la retires.</div>
       <div class="field"><label for="an-ton">Ton du message</label>
         <select id="an-ton" name="ton">
