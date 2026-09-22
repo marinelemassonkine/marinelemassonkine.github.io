@@ -352,7 +352,7 @@ const SUPABASE_KEY = 'sb_publishable_bS-fbBuW7ru_xDywDv_A2A_xHGRGUeN';
 const sb = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 /* ------------------------------------------------------------------ état */
-const VERSION = '2026-09-22-r40';
+const VERSION = '2026-09-22-r41';
 const aujourdhui = new Date();
 const S = {
   session:null, profil:null, params:null,
@@ -947,10 +947,8 @@ function coque(){
     <button class="cloche" data-act="notifs" aria-label="Notifications">${ICO.bell}${S.notifs.some(n=>!n.lu) ? `<b>${S.notifs.filter(n=>!n.lu).length}</b>` : ''}</button>
     <button class="cloche" data-act="menu" aria-label="Menu">${ICO.menu}${(totalNonLus() + (admin ? aTraiter() : 0)) ? '<b>•</b>' : ''}</button>
   </div>
-  <div class="wrap topbar-sous">
-    <div class="txt"><b>Cours de renforcement musculaire des muscles profonds</b><br>Kiné spécialisée en rééducation pelvi-périnéale</div>
-    ${admin ? '' : `<div class="credit-pill">${S.profil.credits}<span>séance${S.profil.credits>1?'s':''}</span></div>`}
-  </div>
+  ${admin ? '' : `<div class="wrap topbar-sous"><div class="txt"></div>
+    <div class="credit-pill">${S.profil.credits}<span>séance${S.profil.credits>1?'s':''}</span></div></div>`}
   </header>
   <main class="wrap">
     ${S.majDispo ? `<button class="notice ok maj-dispo" data-act="recharger">✨ Nouvelle version de l’appli — touche ici pour mettre à jour</button>` : ''}
