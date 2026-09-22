@@ -290,6 +290,10 @@ input, select, textarea{box-sizing:border-box; max-width:100%}
 .ligne-actions{flex:none; display:flex; flex-direction:column; align-items:flex-end; gap:6px}
 .card + .form-suite{margin-top:10px}
 .aide{font-size:12.5px; line-height:1.45; color:var(--ink-faint)}
+.suggestions{background:var(--rose-soft); border-radius:var(--radius-sm); padding:10px 12px; margin-top:6px}
+.suggestions .t{font-size:11px; text-transform:uppercase; letter-spacing:.07em; font-weight:700; color:var(--rose); margin-bottom:5px}
+.suggestions .b{font-size:13.5px; line-height:1.45; color:var(--ink); margin-top:4px}
+.suggestions .b b{color:var(--rose)}
 
 .notice{border-radius:var(--radius-sm); padding:11px 13px; font-size:14px; margin-bottom:14px; line-height:1.45}
 .notice.err{background:var(--danger-soft); color:var(--danger)}
@@ -354,7 +358,7 @@ const SUPABASE_KEY = 'sb_publishable_bS-fbBuW7ru_xDywDv_A2A_xHGRGUeN';
 const sb = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 /* ------------------------------------------------------------------ état */
-const VERSION = '2026-09-22-r48';
+const VERSION = '2026-09-22-r49';
 const aujourdhui = new Date();
 const S = {
   session:null, profil:null, params:null,
@@ -1193,12 +1197,21 @@ function carteCreneau(c, admin, avecDate){
       ${!annule && !passe && (S.params.min_participants||0) > 0 && c.places_prises < S.params.min_participants
         ? `<div class="faint">Minimum ${S.params.min_participants} inscrites, sinon le cours est annulé</div>` : ''}
       ${!admin && mien && !annule && !passe ? blocBesoin(c) : ''}
+      ${admin ? boiteSuggestions(c) : ''}
       ${etat}
     </div>
     ${action ? `<div style="align-self:center">${action}</div>` : ''}
   </div>`;
 }
 
+function boiteSuggestions(c){
+  const liste = (c.besoins || []).filter(x => (x.texte||'').trim());
+  if (!liste.length) return '';
+  return `<div class="suggestions">
+    <div class="t">💡 Besoins des inscrites · ${liste.length}</div>
+    ${liste.map(x => `<div class="b"><b>${esc(x.prenom)}${x.nom ? ' ' + esc(x.nom) + '.' : ''}${x.statut === 'attente' ? ' (en attente)' : ''} :</b> ${esc(x.texte)}</div>`).join('')}
+  </div>`;
+}
 function blocBesoin(c){
   const b = (c.mon_besoin || '').trim();
   return `<button type="button" data-act="besoin" data-id="${c.id}" style="all:unset; cursor:pointer; display:block; margin-top:4px; font-size:12.5px; line-height:1.45">
