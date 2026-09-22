@@ -354,12 +354,12 @@ const SUPABASE_KEY = 'sb_publishable_bS-fbBuW7ru_xDywDv_A2A_xHGRGUeN';
 const sb = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 /* ------------------------------------------------------------------ état */
-const VERSION = '2026-09-22-r45';
+const VERSION = '2026-09-22-r46';
 const aujourdhui = new Date();
 const S = {
   session:null, profil:null, params:null,
   vue:'cours', creneaux:[], adherentes:[], mouvements:[], historique:[], annonces:[], videos:[], notifs:[], lots:[], demandes:[], rappels:[], msgGroupe:[], msgPrives:[], lectures:{}, conv:null,
-  planningVue:'calendrier',
+  planningVue:'calendrier', coursVue:'liste',
   mois:new Date(aujourdhui.getFullYear(), aujourdhui.getMonth(), 1),
   jourSel:null,
   sheet:null, notice:null, authMode:'login', busy:false, recherche:''
@@ -1198,12 +1198,28 @@ function listeParJour(liste, admin){
 
 function vueCoursDispo(){
   const futurs = S.creneaux.filter(c => new Date(c.debut) > new Date());
+  const cal = S.coursVue === 'calendrier';
   return `
     ${bandeauAnnonces()}
     ${invitationPush()}
     ${alerteConfirmation()}
     ${alerteCredits()}
-    ${listeParJour(futurs, false)}`;
+    <div class="seg">
+      <button data-act="cours-vue" data-v="liste" aria-pressed="${!cal}">Liste</button>
+      <button data-act="cours-vue" data-v="calendrier" aria-pressed="${cal}">Calendrier</button>
+    </div>
+    ${cal ? calendrier() + panneauJourClient() : listeParJour(futurs, false)}`;
+}
+function panneauJourClient(){
+  if (!S.jourSel) return `<div class="faint" style="margin-top:18px; text-align:center">Touche un jour du calendrier pour voir les cours et réserver.</div>`;
+  const d = dePuisCle(S.jourSel);
+  const liste = S.creneaux
+    .filter(c => dayKey(new Date(c.debut)) === S.jourSel && c.statut === 'ouvert' && new Date(c.debut) > new Date())
+    .sort((a,b) => new Date(a.debut) - new Date(b.debut));
+  return `
+    <div class="day"><strong>${esc(fDay(d))}</strong></div>
+    ${liste.length ? `<div class="stack">${liste.map(c => carteCreneau(c, false)).join('')}</div>`
+      : '<div class="faint">Aucun cours ce jour-là.</div>'}`;
 }
 function alerteConfirmation(){
   const a = S.creneaux.filter(c => c.mon_statut === 'confirmee' && c.a_confirmer && new Date(c.debut) > new Date());
@@ -1911,6 +1927,15 @@ document.addEventListener('click', async (e) => {
     case 'rafraichir': await agir(async()=>{ await chargerProfil(); await chargerCreneaux(); await chargerAnnonces(); }); break;
 
     case 'planning-vue': S.planningVue = el.dataset.v; render(); break;
+    case 'cours-vue': {
+      S.coursVue = el.dataset.v;
+      if (S.coursVue === 'calendrier' && !S.jourSel){
+        const p = S.creneaux.filter(c => c.statut === 'ouvert' && new Date(c.debut) > new Date())
+          .sort((a,b) => new Date(a.debut) - new Date(b.debut))[0];
+        if (p) { S.jourSel = dayKey(new Date(p.debut)); S.mois = new Date(new Date(p.debut).getFullYear(), new Date(p.debut).getMonth(), 1); }
+      }
+      render(); break;
+    }
     case 'mois': {
       const pas = Number(el.dataset.pas);
       S.mois = new Date(S.mois.getFullYear(), S.mois.getMonth() + pas, 1);
