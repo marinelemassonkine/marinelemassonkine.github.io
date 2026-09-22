@@ -283,7 +283,7 @@ const sb = createClient(SUPABASE_URL, SUPABASE_KEY);
 const aujourdhui = new Date();
 const S = {
   session:null, profil:null, params:null,
-  vue:'cours', creneaux:[], adherentes:[], mouvements:[], historique:[], annonces:[], videos:[], notifs:[], lots:[], demandes:[],
+  vue:'cours', creneaux:[], adherentes:[], mouvements:[], historique:[], annonces:[], videos:[], notifs:[], lots:[], demandes:[], rappels:[],
   planningVue:'calendrier',
   mois:new Date(aujourdhui.getFullYear(), aujourdhui.getMonth(), 1),
   jourSel:null,
@@ -378,6 +378,69 @@ function feuilleParticipants(c){
     ${att.length ? `<div class="section-title">Liste d’attente · ${att.length}</div>
       <div class="faint" style="margin:-4px 0 10px">Dans l’ordre d’arrivée : la première récupère la prochaine place libérée.</div>
       <div class="card">${att.map((x,i)=>ligne(x,i,true)).join('')}</div>` : ''}`;
+}
+async function chargerRappels(){
+  const { data } = await sb.from('rappels').select('*').order('cree_le', { ascending:true });
+  S.rappels = data || [];
+}
+const JOURS_C = ['dim','lun','mar','mer','jeu','ven','sam'];
+const JOURS_L = ['dimanche','lundi','mardi','mercredi','jeudi','vendredi','samedi'];
+const CIBLES = { toutes:'Toutes les adhérentes', inscrites_demain:'Les inscrites à un cours le lendemain', inscrites_jour:'Les inscrites à un cours le jour même', sans_resa:'Les adhérentes sans aucune réservation à venir' };
+function resumeRappel(r){
+  const h = String(r.heure||'').slice(0,5).replace(':','h');
+  let q = r.repetition === 'quotidien' ? 'Tous les jours'
+    : r.repetition === 'hebdo' ? ((r.jours||[]).length ? 'Chaque ' + [...r.jours].sort().map(j=>JOURS_L[j]).join(', ') : 'Aucun jour choisi')
+    : r.repetition === 'mensuel' ? `Le ${r.jour_mois} de chaque mois`
+    : `Une seule fois, le ${r.date_unique ? fExp(r.date_unique) : '?'}`;
+  return `${q} à ${h} · ${CIBLES[r.cible]||r.cible}`;
+}
+function vueAdminRappels(){
+  return `
+    <div class="row-between" style="margin-bottom:10px"><div class="faint" style="max-width:62%">Crée autant de rappels que tu veux : message, heure, jours et destinataires.</div>
+      <button class="btn sm" data-act="rappel-edit" data-id="">+ Nouveau rappel</button></div>
+    ${S.rappels.length ? `<div class="stack">${S.rappels.map(r=>`
+      <div class="card stack" style="${r.actif?'':'opacity:.6'}">
+        <div class="row-between"><div style="font-weight:700">${esc(r.titre)}</div>
+          ${r.actif ? '<span class="badge ok">Actif</span>' : '<span class="badge neutral">En pause</span>'}</div>
+        <div class="faint">${esc(resumeRappel(r))}</div>
+        <div style="font-size:14px; line-height:1.45; white-space:pre-line">${esc(r.message)}</div>
+        <div class="row" style="flex-wrap:wrap">
+          <button class="btn soft xs" data-act="rappel-edit" data-id="${r.id}">Modifier</button>
+          <button class="btn soft xs" data-act="rappel-toggle" data-id="${r.id}">${r.actif ? 'Mettre en pause' : 'Activer'}</button>
+          <button class="btn soft xs" data-act="rappel-test" data-id="${r.id}">M’envoyer un test</button>
+          <button class="btn dangerish xs" data-act="rappel-suppr" data-id="${r.id}">Supprimer</button>
+        </div>
+      </div>`).join('')}</div>`
+    : `<div class="empty">${ICO.bell}<div>Aucun rappel pour l’instant.</div></div>`}`;
+}
+function formRappel(r){
+  r = r || { titre:'', message:'', cible:'toutes', heure:'18:00', repetition:'hebdo', jours:[], jour_mois:1, date_unique:'' };
+  const opt = (v, l, cur) => `<option value="${v}" ${v===cur?'selected':''}>${l}</option>`;
+  return `<form id="frappel" class="stack" data-id="${r.id||''}">
+    <div class="field" style="margin:0"><label for="rp-titre">Titre de la notification</label>
+      <input id="rp-titre" name="titre" value="${esc(r.titre)}" required placeholder="Ex. : Ton cours {jour} à {heure} ❤️"></div>
+    <div class="field" style="margin:0"><label for="rp-msg">Message</label>
+      <textarea id="rp-msg" name="message" rows="5" required placeholder="Hey {prenom} ! …">${esc(r.message)}</textarea>
+      <div class="faint" style="margin-top:6px; font-size:12.5px; line-height:1.5">Mots magiques remplacés automatiquement :
+        <b>{prenom}</b> · <b>{jour}</b> (demain / aujourd’hui) · <b>{heure}</b> (heure du cours) · <b>{date}</b> · <b>{seances}</b> (séances restantes) · <b>{cours_semaine}</b> (places de la semaine) · <b>{prochains_cours}</b></div></div>
+    <div class="field" style="margin:0"><label for="rp-cible">Qui le reçoit</label>
+      <select id="rp-cible" name="cible">${Object.entries(CIBLES).map(([v,l])=>opt(v,l,r.cible)).join('')}</select></div>
+    <div class="fields-2">
+      <div class="field" style="margin:0"><label for="rp-heure">Heure</label>
+        <input id="rp-heure" name="heure" type="time" value="${String(r.heure||'18:00').slice(0,5)}" required></div>
+      <div class="field" style="margin:0"><label for="rp-rep">Répétition</label>
+        <select id="rp-rep" name="repetition" data-act-change="rp-rep">
+          ${opt('une_fois','Une seule fois',r.repetition)}${opt('quotidien','Tous les jours',r.repetition)}${opt('hebdo','Certains jours de la semaine',r.repetition)}${opt('mensuel','Une fois par mois',r.repetition)}
+        </select></div>
+    </div>
+    <div data-rep="hebdo" ${r.repetition==='hebdo'?'':'hidden'}><div class="faint" style="margin-bottom:6px">Quels jours ?</div>
+      <div class="row" style="flex-wrap:wrap; gap:6px">${[1,2,3,4,5,6,0].map(j=>`<label class="btn soft xs" style="gap:6px"><input type="checkbox" name="j${j}" ${(r.jours||[]).includes(j)?'checked':''}> ${JOURS_C[j]}</label>`).join('')}</div></div>
+    <div data-rep="mensuel" class="field" style="margin:0" ${r.repetition==='mensuel'?'':'hidden'}><label for="rp-jm">Jour du mois</label>
+      <input id="rp-jm" name="jour_mois" type="number" min="1" max="28" value="${r.jour_mois||1}"></div>
+    <div data-rep="une_fois" class="field" style="margin:0" ${r.repetition==='une_fois'?'':'hidden'}><label for="rp-date">Date</label>
+      <input id="rp-date" name="date_unique" type="date" value="${r.date_unique||''}" min="${dayKey(new Date())}"></div>
+    <button class="btn full" type="submit" ${S.busy?'disabled':''}>${r.id ? 'Enregistrer' : 'Créer le rappel'}</button>
+  </form>`;
 }
 async function chargerDemandes(){
   const { data } = await sb.from('demandes_credits').select('*').order('cree_le', { ascending:false }).limit(estAdmin() ? 100 : 10);
@@ -539,7 +602,7 @@ function coque(){
 
 function barreOnglets(admin){
   const items = admin
-    ? [['planning','Planning',ICO.cal],['adherentes','Adhérentes',ICO.users],['videos','Vidéos',ICO.play],['reglages','Réglages',ICO.gear]]
+    ? [['planning','Planning',ICO.cal],['adherentes','Adhérentes',ICO.users],['videos','Vidéos',ICO.play],['rappels','Rappels',ICO.bell],['reglages','Réglages',ICO.gear]]
     : [['cours','Les cours',ICO.cal],['mes','Mes cours',ICO.check],...(S.profil.acces_videos?[['videos','Vidéos',ICO.play]]:[]),['compte','Mon compte',ICO.user]];
   if (S.profil.statut !== 'active' && !admin) return '';
   return `<nav class="tabs"><div class="tabs-in">${items.map(([k,l,i])=>`
@@ -785,6 +848,7 @@ function vueAdmin(){
   if (S.vue === 'adherentes') return vueAdminAdherentes();
   if (S.vue === 'reglages')   return vueAdminReglages();
   if (S.vue === 'videos')     return vueAdminVideos();
+  if (S.vue === 'rappels')    return vueAdminRappels();
   return vueAdminPlanning();
 }
 
@@ -1088,20 +1152,7 @@ function vueAdminReglages(){
           <input id="r-dmin" name="delai_min" type="number" min="1" max="168" value="${S.params.delai_min_h ?? 24}" required></div>
       </div>
       <div class="faint" style="margin:-4px 0 12px">S’il y a moins d’inscrites que ce minimum à ce moment-là, le cours est annulé automatiquement, les crédits sont rendus et tout le monde est prévenu. Mets 0 pour désactiver.</div>
-      <label class="row" style="gap:10px; align-items:flex-start; margin:0 0 14px; cursor:pointer">
-        <input type="checkbox" name="rappel_hebdo" ${S.params.rappel_hebdo === false ? '' : 'checked'} style="width:20px; height:20px; margin-top:2px; flex:none">
-        <span><b>Rappel chaque dimanche à 18 h</b><br><span class="faint">Chaque adhérente reçoit les places restantes des cours de la semaine, pour l’inciter à réserver vite.</span></span>
-      </label>
-      <label class="row" style="gap:10px; align-items:flex-start; margin:0 0 14px; cursor:pointer">
-        <input type="checkbox" name="rappel_veille" ${S.params.rappel_veille === false ? '' : 'checked'} style="width:20px; height:20px; margin-top:2px; flex:none">
-        <span><b>Rappel la veille du cours</b><br><span class="faint">Chaque inscrite reçoit un rappel de son cours, avec l’heure limite pour annuler et récupérer sa séance.</span></span>
-      </label>
-      <label class="row" style="gap:10px; align-items:flex-start; margin:0 0 8px; cursor:pointer">
-        <input type="checkbox" name="relance_inactives" ${S.params.relance_inactives === false ? '' : 'checked'} style="width:20px; height:20px; margin-top:2px; flex:none">
-        <span><b>Relancer les adhérentes qui ne viennent plus</b><br><span class="faint">Le mercredi à 12 h, un petit message « Tu nous manques ! » avec les prochains cours, aux adhérentes sans réservation depuis :</span></span>
-      </label>
-      <div class="field" style="margin:0 0 14px 30px"><select name="relance_jours" style="width:auto">
-        ${[7,14,21,30].map(j=>`<option value="${j}" ${(S.params.relance_jours||14)===j?'selected':''}>${j} jours</option>`).join('')}</select></div>
+      <div class="notice info" style="margin:0 0 14px">Les rappels automatiques (veille du cours, cours de la semaine, relances…) se gèrent maintenant dans l’onglet <b>Rappels</b>.</div>
       <button class="btn full" type="submit" ${S.busy?'disabled':''}>Enregistrer</button>
     </form>
 
@@ -1115,6 +1166,7 @@ function feuille(){
   let titre = '', corps = '';
   if (S.sheet.type === 'nouveau'){ titre = 'Nouveau cours'; corps = formNouveauCreneau(); }
   if (S.sheet.type === 'notifs'){ titre = 'Notifications'; corps = listeNotifs(); }
+  if (S.sheet.type === 'rappel'){ const r = S.rappels.find(x=>x.id===S.sheet.id); titre = r ? 'Modifier le rappel' : 'Nouveau rappel'; corps = formRappel(r); }
   if (S.sheet.type === 'participants'){ const c = S.creneaux.find(x=>x.id===S.sheet.id);
     titre = c ? `${fDay(new Date(c.debut)).replace(/^./, x=>x.toUpperCase())} · ${fTime(new Date(c.debut))}` : 'Participantes'; corps = feuilleParticipants(c); }
   if (S.sheet.type === 'detail'){  const c = S.creneaux.find(x=>x.id===S.sheet.id);
@@ -1283,7 +1335,7 @@ document.addEventListener('click', async (e) => {
 
   switch(act){
     case 'mode': S.authMode = el.dataset.mode; S.notice=null; render(); break;
-    case 'vue': S.vue = el.dataset.vue; S.notice=null; render(); if(S.vue==='compte') Promise.all([chargerMouvements(), chargerLots(), chargerDemandes()]).then(render); if(S.vue==='adherentes') chargerDemandes().then(render); if(S.vue==='mes') chargerHistorique().then(render); if(S.vue==='videos') chargerVideos().then(render); break;
+    case 'vue': S.vue = el.dataset.vue; S.notice=null; render(); if(S.vue==='compte') Promise.all([chargerMouvements(), chargerLots(), chargerDemandes()]).then(render); if(S.vue==='adherentes') chargerDemandes().then(render); if(S.vue==='mes') chargerHistorique().then(render); if(S.vue==='videos') chargerVideos().then(render); if(S.vue==='rappels') chargerRappels().then(render); break;
     case 'fermer': case 'fermer-bg': S.sheet = null; render(); break;
     case 'deconnexion': await sb.auth.signOut(); S.session=null; S.profil=null; render(); break;
     case 'rafraichir': await agir(async()=>{ await chargerProfil(); await chargerCreneaux(); await chargerAnnonces(); }); break;
@@ -1398,6 +1450,23 @@ document.addEventListener('click', async (e) => {
       }); break;
     }
     case 'voir-participants': S.sheet = { type:'participants', id: el.dataset.id }; render(); break;
+    case 'rappel-edit': S.sheet = { type:'rappel', id: el.dataset.id || null }; render(); break;
+    case 'rappel-toggle': await agir(async()=>{
+      const r = S.rappels.find(x=>x.id===el.dataset.id);
+      const { error } = await sb.from('rappels').update({ actif: !r.actif }).eq('id', r.id);
+      if (error) throw error; await chargerRappels(); flash('ok', r.actif ? 'Rappel mis en pause.' : 'Rappel activé.');
+    }); break;
+    case 'rappel-suppr': {
+      if (!confirm('Supprimer ce rappel ?')) break;
+      await agir(async()=>{
+        const { error } = await sb.from('rappels').delete().eq('id', el.dataset.id);
+        if (error) throw error; await chargerRappels(); flash('ok','Rappel supprimé.');
+      }); break;
+    }
+    case 'rappel-test': await agir(async()=>{
+      await rpc('admin_tester_rappel', { p_id: el.dataset.id });
+      await chargerNotifs(); flash('ok','Test envoyé : regarde la cloche (et ton téléphone si les notifications sont activées).');
+    }); break;
     case 'h-onglet': if (S.sheet) { S.sheet.hOnglet = el.dataset.v; render(); } break;
     case 'suppr-lot': {
       if (!confirm('Retirer ces séances du compte de la cliente ?')) break;
@@ -1532,6 +1601,10 @@ document.addEventListener('input', (e)=>{
   if (e.target.dataset.act === 'recherche'){ S.recherche = e.target.value; const v = e.target.value; render();
     const f = $('#q'); if (f){ f.focus(); f.setSelectionRange(v.length, v.length); } }
 });
+document.addEventListener('change', (e) => {
+  if (e.target.id !== 'rp-rep') return;
+  document.querySelectorAll('#frappel [data-rep]').forEach(b => b.hidden = b.dataset.rep !== e.target.value);
+});
 document.addEventListener('change', async (e) => {
   const el = e.target.closest('[data-lot-date]');
   if (!el) return;
@@ -1579,14 +1652,22 @@ document.addEventListener('submit', async (e) => {
       nom_cabinet: d.nom_cabinet.trim(),
       delai_annulation_h: Number(d.delai),
       min_participants: Number(d.min_participants),
-      delai_min_h: Number(d.delai_min),
-      rappel_hebdo: d.rappel_hebdo === 'on',
-      rappel_veille: d.rappel_veille === 'on',
-      relance_inactives: d.relance_inactives === 'on',
-      relance_jours: Number(d.relance_jours || 14)
+      delai_min_h: Number(d.delai_min)
     }).eq('id', true);
     if (error) throw error;
     await chargerProfil(); flash('ok','Réglages enregistrés.');
+  });
+
+  if (f.id === 'frappel') return agir(async()=>{
+    const jours = [0,1,2,3,4,5,6].filter(j => f.querySelector(`[name="j${j}"]`)?.checked);
+    const row = { titre: d.titre.trim(), message: d.message.trim(), cible: d.cible, heure: d.heure, repetition: d.repetition,
+      jours, jour_mois: Number(d.jour_mois||1), date_unique: d.date_unique || null };
+    if (row.repetition === 'hebdo' && !jours.length) throw new Error('Choisis au moins un jour.');
+    if (row.repetition === 'une_fois' && !row.date_unique) throw new Error('Choisis la date du rappel.');
+    const id = f.dataset.id;
+    const { error } = id ? await sb.from('rappels').update(row).eq('id', id) : await sb.from('rappels').insert({ ...row, actif:true });
+    if (error) throw error;
+    S.sheet = null; await chargerRappels(); flash('ok', id ? 'Rappel enregistré.' : 'Rappel créé.');
   });
 
   if (f.id === 'fdemande') return agir(async()=>{
