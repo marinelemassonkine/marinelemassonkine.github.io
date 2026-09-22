@@ -70,7 +70,7 @@ h1,h2,h3{font-family:"Fraunces", ui-serif, Georgia, serif; font-weight:500; marg
 
 /* ---------- header ---------- */
 .topbar{
-  position:sticky; top:env(safe-area-inset-top,0px); z-index:20;
+  position:sticky; top:0; z-index:20; padding-top:env(safe-area-inset-top,0px);
   background:color-mix(in srgb, var(--bg) 88%, transparent);
   backdrop-filter:blur(10px);
   border-bottom:2px solid var(--rose-soft);
@@ -353,7 +353,7 @@ const SUPABASE_KEY = 'sb_publishable_bS-fbBuW7ru_xDywDv_A2A_xHGRGUeN';
 const sb = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 /* ------------------------------------------------------------------ état */
-const VERSION = '2026-09-22-r43';
+const VERSION = '2026-09-22-r44';
 const aujourdhui = new Date();
 const S = {
   session:null, profil:null, params:null,
