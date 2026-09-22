@@ -81,7 +81,8 @@ h1,h2,h3{font-family:"Fraunces", ui-serif, Georgia, serif; font-weight:500; marg
 .brand .sub{font-size:12.5px; color:var(--ink-soft); line-height:1.3; margin-top:2px}
 .topbar-sous{display:flex; gap:10px; align-items:center; justify-content:space-between; font-size:11.5px; color:var(--ink-faint); line-height:1.35; padding-bottom:10px; margin-top:-3px}
 .topbar-sous .txt{min-width:0}
-.logo{flex:none; width:42px; height:42px; border-radius:13px; overflow:hidden; background:var(--rose-soft); display:grid; place-items:center}
+.logo{flex:none; width:42px; height:42px; border-radius:13px; overflow:hidden; background:var(--accent); display:grid; place-items:center; color:var(--rose-vif)}
+.logo svg{width:76%; height:76%; display:block}
 .logo img{width:100%; height:100%; object-fit:cover; display:block}
 .logo span{font-family:Fraunces,serif; font-weight:600; font-size:17px; color:var(--rose); letter-spacing:.5px}
 .logo.grand{width:72px; height:72px; border-radius:20px; margin:0 auto 14px}
@@ -351,7 +352,7 @@ const SUPABASE_KEY = 'sb_publishable_bS-fbBuW7ru_xDywDv_A2A_xHGRGUeN';
 const sb = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 /* ------------------------------------------------------------------ état */
-const VERSION = '2026-09-22-r38';
+const VERSION = '2026-09-22-r39';
 const aujourdhui = new Date();
 const S = {
   session:null, profil:null, params:null,
@@ -963,7 +964,7 @@ function coque(){
 function logoCabinet(grand){
   const url = S.params && S.params.logo_url;
   const ini = ((S.params && S.params.nom_cabinet) || 'ML').split(' ').filter(Boolean).slice(0,2).map(m => m[0]).join('').toUpperCase();
-  return `<div class="logo${grand ? ' grand' : ''}">${url ? `<img src="${esc(url)}" alt="">` : `<span>${esc(ini)}</span>`}</div>`;
+  return `<div class="logo${grand ? ' grand' : ''}">${url ? `<img src="${esc(url)}" alt="">` : ICO.lotus}</div>`;
 }
 function elementsMenu(admin){
   return admin
@@ -1022,6 +1023,7 @@ const ICO = {
   gear:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3.2"/><path d="M12 2.8v2.4M12 18.8v2.4M4.3 7.4l2 1.2M17.7 15.4l2 1.2M4.3 16.6l2-1.2M17.7 8.6l2-1.2"/></svg>',
   bell:'<svg viewBox="0 0 24 24"><path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15Z"/><path d="M10 20.5a2 2 0 0 0 4 0"/></svg>',
   play:'<svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M10 9.5v5l4.5-2.5Z"/></svg>',
+  lotus:'<svg viewBox=\"0 0 512 512\" aria-hidden=\"true\"><g fill=\"currentColor\"><path d=\"M256 322 C224 272 224 200 256 150 C288 200 288 272 256 322 Z\" transform=\"rotate(-40 256 322)\" opacity=\".72\"/><path d=\"M256 322 C224 272 224 200 256 150 C288 200 288 272 256 322 Z\" transform=\"rotate(40 256 322)\" opacity=\".72\"/><path d=\"M256 322 C222 268 222 196 256 142 C290 196 290 268 256 322 Z\"/></g><path d=\"M150 350 C 200 420 312 420 362 350\" stroke=\"currentColor\" stroke-width=\"20\" fill=\"none\" stroke-linecap=\"round\"/></svg>',
   menu:'<svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></svg>',
   logout:'<svg viewBox="0 0 24 24"><path d="M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3"/><path d="M10 16l-4-4 4-4M6 12h10"/></svg>',
   refresh:'<svg viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-2.3-5.6"/><path d="M20 4v5h-5"/></svg>',
@@ -1035,7 +1037,7 @@ function vueAuth(){
   const oubli = S.authMode === 'reset';
   return `<div class="wrap auth">
     <div class="auth-head">
-      ${S.params && S.params.logo_url ? logoCabinet(true) : `<div class="mark">${ICO.leaf}</div>`}
+      ${(S.params && S.params.logo_url) ? logoCabinet(true) : `<div class="logo grand">${ICO.lotus}</div>`}
       <h1>${oubli ? 'Mot de passe oublié' : inscription ? 'Créer mon compte' : 'Bienvenue'}</h1>
       <p>${oubli ? 'On t’envoie un lien pour choisir un nouveau mot de passe.'
           : inscription ? 'Quelques informations et ta praticienne validera ton inscription.'
@@ -1072,7 +1074,7 @@ function vueAuth(){
 
 function ecranSimple(titre, texte, avecLogo){
   return `<div class="card stack" style="text-align:center; padding:28px 20px">
-    ${avecLogo ? `<div class="mark" style="margin-bottom:4px">${ICO.leaf}</div>` : ''}
+    ${avecLogo ? `<div class="logo grand" style="margin-bottom:4px">${ICO.lotus}</div>` : ''}
     <h2 style="font-size:20px">${esc(titre)}</h2>
     <p class="muted" style="margin:0">${esc(texte)}</p>
     ${avecLogo ? '<button class="btn ghost" data-act="rafraichir">Vérifier maintenant</button>' : ''}
