@@ -144,7 +144,7 @@ h1,h2,h3{font-family:"Fraunces", ui-serif, Georgia, serif; font-weight:500; marg
 .conv:last-child{border-bottom:0}
 .conv .nb{flex:none; min-width:22px; height:22px; padding:0 6px; border-radius:999px; background:var(--rose); color:#fff; font-size:12px; font-weight:700; line-height:22px; text-align:center}
 /* ---------- blocks ---------- */
-main{padding-block:26px 24px; min-height:60vh}
+main{padding-block:38px 24px; min-height:60vh}
 .section-title{font-size:12px; text-transform:uppercase; letter-spacing:.08em; color:var(--ink-faint); font-weight:700; margin:26px 0 10px}
 .section-title:first-child{margin-top:0}
 
@@ -161,7 +161,7 @@ main{padding-block:26px 24px; min-height:60vh}
 .annonce .ico{flex:none; font-size:17px; line-height:1.25}
 .annonce .txt{min-width:0}
 .annonce .quand{font-size:12px; opacity:.75; margin-top:5px}
-.ann-wrap{margin:4px 0 18px}
+.ann-wrap{margin:0 0 20px}
 .ann-slides{display:grid}
 .ann-slide{grid-area:1/1; opacity:0; visibility:hidden; transition:opacity .35s ease}
 .ann-slide.on{opacity:1; visibility:visible}
@@ -335,7 +335,7 @@ const SUPABASE_KEY = 'sb_publishable_bS-fbBuW7ru_xDywDv_A2A_xHGRGUeN';
 const sb = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 /* ------------------------------------------------------------------ état */
-const VERSION = '2026-09-22-r34';
+const VERSION = '2026-09-22-r35';
 const aujourdhui = new Date();
 const S = {
   session:null, profil:null, params:null,
