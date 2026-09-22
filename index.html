@@ -347,6 +347,18 @@ async function chargerCreneaux(){
   const { data, error } = await sb.rpc('liste_creneaux', { p_jours: 365 });
   if (error) { flash('err', messageErreur(error)); return; }
   S.creneaux = data || [];
+  const p = await sb.rpc('participants_cours', { p_jours: 365 });
+  S.participants = {};
+  (p.data || []).forEach(x => { (S.participants[x.creneau_id] ||= []).push(x); });
+}
+function listeParticipants(c){
+  const ps = (S.participants || {})[c.id] || [];
+  if (!ps.length) return '';
+  const nom = x => x.moi ? '<b>toi</b>' : esc(x.nom);
+  const conf = ps.filter(x => x.statut === 'confirmee'), att = ps.filter(x => x.statut === 'attente');
+  return `<div class="faint" style="font-size:12.5px; line-height:1.45; margin-top:4px">
+    ${conf.length ? `<span style="color:var(--ink-soft)">Inscrites :</span> ${conf.map(nom).join(', ')}` : ''}
+    ${att.length ? `<br><span style="color:var(--ink-soft)">En attente :</span> ${att.map(nom).join(', ')}` : ''}</div>`;
 }
 async function chargerDemandes(){
   const { data } = await sb.from('demandes_credits').select('*').order('cree_le', { ascending:false }).limit(estAdmin() ? 100 : 10);
@@ -645,6 +657,7 @@ function carteCreneau(c, admin, avecDate){
         ${c.nb_attente>0 ? ` · ${c.nb_attente} en attente` : ''}
       </div>
       ${c.note ? `<div class="faint">${esc(c.note)}</div>` : ''}
+      ${!admin && !annule && !passe ? listeParticipants(c) : ''}
       ${!annule && !passe && (S.params.min_participants||0) > 0 && c.places_prises < S.params.min_participants
         ? `<div class="faint">Minimum ${S.params.min_participants} inscrites, sinon le cours est annulé</div>` : ''}
       ${etat}
