@@ -358,7 +358,7 @@ const SUPABASE_KEY = 'sb_publishable_bS-fbBuW7ru_xDywDv_A2A_xHGRGUeN';
 const sb = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 /* ------------------------------------------------------------------ état */
-const VERSION = '2026-09-23-r64';
+const VERSION = '2026-09-23-r65';
 const aujourdhui = new Date();
 const S = {
   session:null, profil:null, params:null,
@@ -388,6 +388,7 @@ const ERREURS = {
   creneau_introuvable:"Ce cours n'existe plus.",
   creneau_annule:"Ce cours a été annulé.",
   creneau_passe:"Ce cours est déjà passé.",
+  creneau_commence:"Ce cours a commencé : il n’est plus possible de l’annuler. Préviens Marine directement si besoin.",
   deja_inscrite:"Tu es déjà inscrite à ce cours.",
   demande_deja_en_cours:"Tu as déjà une demande en attente. Marine te répondra bientôt.",
   demande_introuvable:"Cette demande n’existe plus.",
@@ -1280,7 +1281,10 @@ function carteCreneau(c, admin, avecDate){
     `<i class="pip ${i < c.places_prises ? '' : 'free'}"></i>`).join('');
 
   let etat;
+  const enCours = passe && new Date() < fin;
   if (annule) etat = '<span class="badge off">Cours annulé</span>';
+  else if (passe) etat = `<span class="badge neutral">${enCours ? 'Cours en cours' : 'Cours passé'}</span>${
+    mien === 'confirmee' ? ' <span class="badge ok">Tu y étais inscrite</span>' : ''}`;
   else if (mien === 'confirmee' && c.a_confirmer) etat = '<span class="badge wait">Place libérée pour toi · à confirmer</span>';
   else if (mien === 'confirmee') etat = '<span class="badge ok">Ta place est réservée</span>';
   else if (mien === 'attente') etat = `<span class="badge wait">Liste d’attente · ${c.ma_position}${c.ma_position===1?'re':'e'}</span>`;
@@ -1314,6 +1318,9 @@ function carteCreneau(c, admin, avecDate){
       ${!annule && !passe && (S.params.min_participants||0) > 0 && c.places_prises < S.params.min_participants
         ? `<div class="faint">Minimum ${S.params.min_participants} inscrites, sinon le cours est annulé</div>` : ''}
       ${!admin && mien && !annule && !passe ? blocBesoin(c) : ''}
+      ${!admin && !annule && passe ? `<div class="faint" style="font-size:12.5px; margin-top:4px">${enCours
+        ? 'Le cours a commencé : il n’est plus modifiable.'
+        : 'Ce cours est terminé : il n’est plus modifiable.'}</div>` : ''}
       ${admin ? boiteSuggestions(c) : ''}
       ${etat}
     </div>
