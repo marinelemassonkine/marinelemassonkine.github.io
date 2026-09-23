@@ -358,7 +358,7 @@ const SUPABASE_KEY = 'sb_publishable_bS-fbBuW7ru_xDywDv_A2A_xHGRGUeN';
 const sb = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 /* ------------------------------------------------------------------ état */
-const VERSION = '2026-09-23-r61';
+const VERSION = '2026-09-23-r62';
 const aujourdhui = new Date();
 const S = {
   session:null, profil:null, params:null,
@@ -535,11 +535,39 @@ async function chargerDemandes(){
     S.demandesF = r.data || [];
   } catch { S.demandesF = S.demandesF || []; }
 }
+function horairesCours(){
+  const futurs = (S.creneaux || []).filter(c => c.statut !== 'annule' && new Date(c.debut) > new Date());
+  const m = new Map();
+  futurs.forEach(c => {
+    const d = new Date(c.debut);
+    const k = d.getDay() + '|' + d.getHours() + '|' + d.getMinutes() + '|' + (c.duree_min || 60);
+    m.set(k, (m.get(k) || 0) + 1);
+  });
+  if (!m.size) return '';
+  const hh = (h, mn) => `${h}h${String(mn).padStart(2,'0')}`;
+  const top = [...m.entries()].sort((a,b) => b[1] - a[1]).slice(0,2).map(([k]) => {
+    const [j,h,mn,du] = k.split('|').map(Number);
+    const f = new Date(2000,0,1,h,mn + du);
+    return `le ${JOURS_L[j]} de ${hh(h,mn)} à ${hh(f.getHours(), f.getMinutes())}`;
+  });
+  return top.join(' et ');
+}
 const CIBLE_DEMANDE = {
-  cours:    { cle:'les_deux', bouton:'🤸 Demander l’accès aux étirements et à la mobilité',
-              texte:'Envie de suivre aussi les vidéos d’étirements et de mobilité ? Envoie la demande à Marine, elle te répondra.' },
-  mobilite: { cle:'les_deux', bouton:'🧘 Demander l’accès aux cours de renforcement musculaire',
-              texte:'Envie de participer aussi aux cours de renforcement musculaire des muscles profonds ? Envoie la demande à Marine, elle te répondra.' }
+  cours: { cle:'les_deux', titre:'🤸 Étirements et mobilité',
+    bouton:'Demander l’accès aux étirements et à la mobilité',
+    puces:[
+      'Une bibliothèque de vidéos d’étirements et de mobilité, à faire chez toi ou où tu veux, quand tu veux.',
+      'Des documents à consulter ou à imprimer : fiches d’exercices, programmes, conseils.',
+      'Tu gardes bien sûr tes cours et tes réservations : tu ajoutes simplement cet accès en plus.'
+    ] },
+  mobilite: { cle:'les_deux', titre:'🧘 Cours de renforcement musculaire des muscles profonds',
+    bouton:'Demander l’accès aux cours',
+    puces:[
+      'Les cours en petit groupe avec Marine, HORAIRES.',
+      'Le calendrier dans l’appli pour réserver ta place, et l’annuler si tu as un empêchement.',
+      'La messagerie de groupe avec les autres adhérentes, en plus de ta conversation privée avec Marine.',
+      'Les vidéos des cours, pour rattraper une séance que tu as manquée.'
+    ] }
 };
 function blocDemandeFormule(){
   const f = maFormule();
@@ -547,6 +575,8 @@ function blocDemandeFormule(){
   if (!cible || estAdmin()) return '';
   const enCours = (S.demandesF || []).find(d => d.statut === 'en_attente');
   const derniere = (S.demandesF || []).find(d => d.statut !== 'en_attente');
+  const h = horairesCours();
+  const puces = cible.puces.map(p => p.replace('HORAIRES', h || 'chaque semaine — Marine te donnera les horaires'));
   return `<div class="section-title">Envie d’autre chose ?</div>
     <div class="card stack">
     ${enCours ? `
@@ -556,10 +586,14 @@ function blocDemandeFormule(){
       <div class="faint">Marine va regarder ta demande, tu seras prévenue de sa réponse.</div>
       <button class="btn ghost sm" data-act="demandeF-annuler" data-id="${enCours.id}">Annuler ma demande</button>`
     : `
-      <div class="faint" style="line-height:1.45">${cible.texte}</div>
+      <div style="font-weight:700">${cible.titre}</div>
+      <ul style="margin:0; padding-left:20px; font-size:14px; line-height:1.55; color:var(--muted)">
+        ${puces.map(p => `<li style="margin-bottom:6px">${esc(p)}</li>`).join('')}
+      </ul>
+      <div class="faint" style="line-height:1.45">Ça t’intéresse ? Envoie la demande à Marine : elle te répondra et te dira ce que ça change pour toi.</div>
       <div class="field" style="margin:0"><label for="df-msg">Petit mot (facultatif)</label>
         <input id="df-msg" maxlength="200" placeholder="Ex. : j’aimerais bien essayer"></div>
-      <button class="btn full" data-act="demande-formule" data-f="${cible.cle}" ${S.busy?'disabled':''}>${cible.bouton}</button>
+      <button class="btn full" data-act="demande-formule" data-f="${cible.cle}" ${S.busy?'disabled':''}>✉️ ${cible.bouton}</button>
       ${derniere && derniere.statut === 'refusee' ? '<div class="faint" style="font-size:12.5px">Ta dernière demande n’a pas été retenue. Tu peux en renvoyer une.</div>' : ''}`}
     </div>`;
 }
