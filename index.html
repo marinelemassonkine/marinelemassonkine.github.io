@@ -358,7 +358,7 @@ const SUPABASE_KEY = 'sb_publishable_bS-fbBuW7ru_xDywDv_A2A_xHGRGUeN';
 const sb = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 /* ------------------------------------------------------------------ état */
-const VERSION = '2026-09-23-r53';
+const VERSION = '2026-09-23-r54';
 const aujourdhui = new Date();
 const S = {
   session:null, profil:null, params:null,
@@ -1207,6 +1207,25 @@ function carteCreneau(c, admin, avecDate){
   </div>`;
 }
 
+function formModifCreneau(c){
+  const d = new Date(c.debut);
+  const heure = `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+  return `<form id="fmodif" class="card stack" data-id="${c.id}" style="margin-bottom:16px">
+      <div class="fields-2">
+        <div class="field" style="margin:0"><label for="m-date">Date</label><input id="m-date" name="date" type="date" value="${dayKey(d)}" required></div>
+        <div class="field" style="margin:0"><label for="m-heure">Heure</label><input id="m-heure" name="heure" type="time" value="${heure}" required></div>
+      </div>
+      <div class="fields-2">
+        <div class="field" style="margin:0"><label for="m-duree">Durée (min)</label><input id="m-duree" name="duree" type="number" min="15" max="300" step="5" value="${c.duree_min}" required></div>
+        <div class="field" style="margin:0"><label for="m-cap">Places</label><input id="m-cap" name="capacite" type="number" min="1" max="40" value="${c.capacite}" required></div>
+      </div>
+      <div class="field" style="margin:0"><label for="m-titre">Nom du cours</label><input id="m-titre" name="titre" value="${esc(c.titre)}"></div>
+      <div class="field" style="margin:0"><label for="m-lieu">Lieu (facultatif)</label><input id="m-lieu" name="lieu" value="${esc(c.lieu||'')}"></div>
+      <div class="field" style="margin:0"><label for="m-note">Note pour les adhérentes (facultatif)</label><input id="m-note" name="note" value="${esc(c.note||'')}"></div>
+      <div class="aide">Si tu changes la date, l’heure ou le lieu, les inscrites reçoivent une notification.</div>
+      <button class="btn full" type="submit" ${S.busy?'disabled':''}>Enregistrer les modifications</button>
+    </form>`;
+}
 function feuilleAnnuler(c){
   if (!c) return '<div class="faint">Cours introuvable.</div>';
   const d = new Date(c.debut);
@@ -1838,10 +1857,10 @@ function detailCreneau(c){
       <div class="row-between"><div><div style="font-weight:700">${esc(c.titre)}</div>
         <div class="faint">${conf.length}/${c.capacite} inscrites${att.length?` · ${att.length} en attente`:''}${c.lieu?` · ${esc(c.lieu)}`:''}</div></div>
         ${c.statut==='annule'?'<span class="badge off">Annulé</span>':''}</div>
-      <div class="field" style="margin:0"><label for="d-cap">Nombre de places</label>
-        <div class="row"><input id="d-cap" type="number" min="1" max="40" value="${c.capacite}" style="width:90px">
-        <button class="btn soft sm" data-act="capacite" data-id="${c.id}">Mettre à jour</button></div></div>
+      <div class="faint">${esc(fDay(new Date(c.debut)))} · ${fTime(new Date(c.debut))}</div>
+      <button class="btn soft sm" data-act="modif-cours" data-id="${c.id}">${S.sheet && S.sheet.modif ? 'Fermer la modification' : '✏️ Modifier ce cours'}</button>
     </div>
+    ${S.sheet && S.sheet.modif ? formModifCreneau(c) : ''}
 
     <div class="section-title">Inscrites · ${conf.length}</div>
     <div class="card">${conf.length ? conf.map(ligne).join('') : '<div class="faint">Personne pour l’instant.</div>'}</div>
@@ -2347,6 +2366,7 @@ document.addEventListener('click', async (e) => {
       S.sheet.participants = await rpc('detail_creneau',{p_creneau: S.sheet.id});
     }); break;
 
+    case 'modif-cours': if (S.sheet) { S.sheet.modif = !S.sheet.modif; render(); } break;
     case 'capacite': {
       const v = Number($('#d-cap')?.value || 0);
       if (!v || v < 1) { flash('err','Nombre de places invalide.'); break; }
@@ -2444,6 +2464,18 @@ document.addEventListener('submit', async (e) => {
     const t = $('#bg-txt'); if (t) t.value = '';
     await chargerBugs();
     flash('ok','Merci ! C’est envoyé, on regarde ça 🐞');
+  });
+
+  if (f.id === 'fmodif') return agir(async()=>{
+    const debut = new Date(`${d.date}T${d.heure}`);
+    if (isNaN(debut)) throw new Error('Date invalide.');
+    const r = await rpc('admin_modifier_creneau', {
+      p_creneau: f.dataset.id, p_debut: debut.toISOString(), p_duree: Number(d.duree),
+      p_capacite: Number(d.capacite), p_titre: (d.titre||'').trim(), p_lieu: (d.lieu||'').trim(), p_note: (d.note||'').trim() });
+    await chargerCreneaux();
+    S.sheet.participants = await rpc('detail_creneau', { p_creneau: f.dataset.id });
+    S.sheet.modif = false;
+    flash('ok', r && r.prevenues ? `Cours modifié · ${r.prevenues} inscrite${r.prevenues>1?'s':''} prévenue${r.prevenues>1?'s':''}.` : 'Cours modifié.');
   });
 
   if (f.id === 'fannuler') return agir(async()=>{
