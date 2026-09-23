@@ -358,7 +358,7 @@ const SUPABASE_KEY = 'sb_publishable_bS-fbBuW7ru_xDywDv_A2A_xHGRGUeN';
 const sb = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 /* ------------------------------------------------------------------ état */
-const VERSION = '2026-09-23-r55';
+const VERSION = '2026-09-23-r56';
 const aujourdhui = new Date();
 const S = {
   session:null, profil:null, params:null,
@@ -389,6 +389,7 @@ const ERREURS = {
   creneau_annule:"Ce cours a été annulé.",
   creneau_passe:"Ce cours est déjà passé.",
   deja_inscrite:"Tu es déjà inscrite à ce cours.",
+  formule_sans_cours:"Ta formule donne accès aux vidéos d’étirements et de mobilité, pas aux réservations de cours. Contacte Marine si tu souhaites changer.",
   credits_insuffisants:"Il ne te reste plus aucun crédit séance. Contacte Marine pour en rajouter.",
   credits_expires_avant_cours:"Tes séances auront expiré à la date de ce cours. Choisis un cours plus tôt ou contacte Marine.",
   date_passee:"La date limite doit être aujourd’hui ou plus tard.",
@@ -622,6 +623,9 @@ async function chargerAdherentes(){
   }
 }
 const estAdmin = () => S.profil && S.profil.role === 'admin';
+const estMobilite = () => !!S.profil && S.profil.role !== 'admin' && S.profil.formule === 'mobilite';
+const FORMULES = { cours:'🧘 Cours de Pilates', mobilite:'🤸 Étirements et mobilité' };
+const formuleDe = a => (a && a.formule === 'mobilite') ? 'mobilite' : 'cours';
 function telLien(n){
   if (!n) return '—';
   const num = String(n).replace(/[^\d+]/g, '');
@@ -667,7 +671,7 @@ async function actualiser(silencieux){
       t.push(chargerCreneaux(), chargerAnnonces(), chargerDemandes(), chargerMessages().catch(() => {}));
       if (estAdmin()) t.push(chargerAdherentes(), chargerRappels(), chargerBugs());
       else t.push(chargerHistorique(), chargerLots());
-      if (estAdmin() || S.profil.acces_videos) t.push(chargerVideos());
+      if (estAdmin() || S.profil.acces_videos || estMobilite()) t.push(chargerVideos());
       if (S.vue === 'compte') t.push(chargerMouvements());
     }
     await Promise.all(t);
@@ -971,7 +975,7 @@ function coque(){
   </div>
   <div class="wrap topbar-sous">
     <div class="txt entete">Cours de renforcement musculaire des muscles profonds avec Marine, kiné spécialisée en pelvi-périnéale</div>
-    ${admin ? '' : `<div class="credit-pill">${S.profil.credits}<span>séance${S.profil.credits>1?'s':''}</span></div>`}
+    ${admin || estMobilite() ? '' : `<div class="credit-pill">${S.profil.credits}<span>séance${S.profil.credits>1?'s':''}</span></div>`}
   </div>
   </header>
   <main class="wrap">
@@ -991,6 +995,7 @@ function logoCabinet(grand){
 function elementsMenu(admin){
   return admin
     ? [['planning','Planning',ICO.cal],['adherentes','Adhérentes',ICO.users],['messages','Messages',ICO.chat],['videos','Bibliothèque',ICO.play],['rappels','Rappels',ICO.bell],['reglages','Réglages',ICO.gear]]
+    : estMobilite() ? [['videos','Bibliothèque',ICO.play],['compte','Mon compte',ICO.user]]
     : [['cours','Les cours',ICO.cal],['mes','Mes cours',ICO.check],['messages','Messages',ICO.chat],...(S.profil.acces_videos?[['videos','Bibliothèque',ICO.play]]:[]),['compte','Mon compte',ICO.user]];
 }
 function feuilleMenu(){
@@ -1029,6 +1034,7 @@ async function envoyerLogo(fichier){
 function barreOnglets(admin){
   const items = admin
     ? [['planning','Planning',ICO.cal],['adherentes','Adhérentes',ICO.users],['messages','Messages',ICO.chat],['videos','Bibliothèque',ICO.play],['rappels','Rappels',ICO.bell],['reglages','Réglages',ICO.gear]]
+    : estMobilite() ? [['videos','Bibliothèque',ICO.play],['compte','Mon compte',ICO.user]]
     : [['cours','Les cours',ICO.cal],['mes','Mes cours',ICO.check],['messages','Messages',ICO.chat],...(S.profil.acces_videos?[['videos','Bibliothèque',ICO.play]]:[]),['compte','Mon compte',ICO.user]];
   const nMsg = totalNonLus();
   const nAdh = admin ? aTraiter() : 0;
@@ -1116,9 +1122,10 @@ const vueSuspendu = () => ecranSimple(
   'Ton accès aux réservations est suspendu. Contacte le cabinet pour le réactiver.', false);
 /* ---------------------------------------------------------- espace adhérente */
 function vueAdherente(){
+  if (estMobilite()) return (S.vue === 'compte') ? vueCompte() : vueVideos();
   if (S.vue === 'mes')    return vueMesCours();
   if (S.vue === 'messages') return vueMessages();
-  if (S.vue === 'videos' && S.profil.acces_videos) return vueVideos();
+  if (S.vue === 'videos' && (S.profil.acces_videos || estMobilite())) return vueVideos();
   if (S.vue === 'compte') return vueCompte();
   return vueCoursDispo();
 }
@@ -1383,7 +1390,10 @@ function vueCompte(){
   const p = S.profil;
   return `
     ${carteProfil(p, true)}
-    <div class="card stack" style="align-items:center; text-align:center; padding-block:22px">
+    ${estMobilite() ? `<div class="card stack" style="text-align:center; padding-block:20px">
+      <div style="font-weight:700">🤸 Formule Étirements et mobilité</div>
+      <div class="faint" style="line-height:1.45">Tu as accès à la bibliothèque de vidéos d’étirements et de mobilité, à faire chez toi quand tu veux. Si tu souhaites aussi participer aux cours, parles-en à Marine.</div>
+    </div>` : `<div class="card stack" style="align-items:center; text-align:center; padding-block:22px">
       <div style="font-family:Fraunces,serif; font-size:46px; font-weight:600; line-height:1; color:var(--accent)">${p.credits}</div>
       <div class="muted" style="margin-top:-4px">séance${p.credits>1?'s':''} restante${p.credits>1?'s':''} sur ta carte</div>
       ${detailLots(p.id, true)}
@@ -1391,7 +1401,7 @@ function vueCompte(){
       <div class="faint">Seule Marine ajoute des séances, selon ce que tu as réglé. Une séance est décomptée dès que tu réserves, et elle t’est rendue si tu annules plus de ${S.params.delai_annulation_h} h avant le cours.</div>
     </div>
 
-    ${blocDemandeCliente()}
+    ${blocDemandeCliente()}`}
 
     <div class="section-title">Notifications</div>
     ${cartePush()}
@@ -1412,12 +1422,12 @@ function vueCompte(){
       <button class="btn full" type="submit" ${S.busy?'disabled':''}>Enregistrer</button>
     </form>
 
-    <div class="section-title">Mouvements de séances</div>
+    ${estMobilite() ? '' : `<div class="section-title">Mouvements de séances</div>
     <div class="card">${S.mouvements.length ? S.mouvements.map(m=>{
       const cls = m.delta>0?'plus':m.delta<0?'minus':'zero';
       const val = m.delta>0?`+${m.delta}`:m.delta<0?`${m.delta}`:'0';
       return `<div class="hist"><div class="grow">${esc(m.motif)}<div class="faint">${esc(fDate(new Date(m.cree_le)))}</div></div><div class="delta ${cls}">${val}</div></div>`;
-    }).join('') : '<div class="faint">Aucun mouvement.</div>'}</div>
+    }).join('') : '<div class="faint">Aucun mouvement.</div>'}</div>`}
 
     <div style="margin-top:22px"><button class="btn ghost full" data-act="deconnexion">Se déconnecter</button></div>`;
 }
@@ -1520,7 +1530,7 @@ function vueAdminAdherentes(){
   return `
     <div class="field"><input id="q" placeholder="Rechercher une adhérente…" value="${esc(S.recherche)}" data-act="recherche"></div>
     ${blocDemandesAdmin()}
-    ${attente.length ? '<div class="faint" style="margin-bottom:-4px">Tu décides qui rejoint le cabinet : accepte ou refuse chaque demande.</div>' : ''}
+    ${attente.length ? '<div class="faint" style="margin-bottom:-4px">Tu décides qui rejoint le cabinet, et avec quelle formule : <b>Pilates</b> (calendrier, réservations, messagerie) ou <b>Mobilité</b> (bibliothèque d’étirements uniquement). La formule se change ensuite dans « Gérer ».</div>' : ''}
     ${bloc('Demandes d’inscription', attente)}
     ${bloc('Adhérentes', actives)}
     ${bloc('En pause', inactives)}
@@ -1532,19 +1542,21 @@ function vueAdminAdherentes(){
 function ligneAdherente(a){
   let actions;
   if (a.statut === 'en_attente') {
-    actions = `<button class="btn xs" data-act="statut" data-id="${a.id}" data-val="active">Accepter</button>
-               <button class="btn dangerish xs" data-act="refuser" data-id="${a.id}">Refuser</button>`;
+    actions = `<div class="stack" style="gap:6px">
+                 <button class="btn xs" data-act="statut" data-id="${a.id}" data-val="active" data-f="cours">✓ Pilates</button>
+                 <button class="btn soft xs" data-act="statut" data-id="${a.id}" data-val="active" data-f="mobilite">✓ Mobilité</button>
+                 <button class="btn dangerish xs" data-act="refuser" data-id="${a.id}">Refuser</button></div>`;
   } else if (a.statut === 'refuse') {
     actions = `<button class="btn soft xs" data-act="statut" data-id="${a.id}" data-val="active">Accepter finalement</button>`;
   } else {
-    actions = `<div class="count">${a.credits}</div>
+    actions = `${a.role!=='admin' && formuleDe(a)==='mobilite' ? '<div class="count" title="Étirements et mobilité">🤸</div>' : `<div class="count">${a.credits}</div>`}
                <button class="btn soft xs" data-act="sheet" data-sheet="adherente" data-id="${a.id}">Gérer</button>`;
   }
   return `<div class="person">
     ${avatar(a)}
     <div class="grow">
       <div class="name">${esc(a.prenom)} ${esc(a.nom)}</div>
-      <div class="faint">${telLien(a.telephone)}${a.role==='admin'?' · cabinet':''}${a.acces_videos?' · option vidéo':''}${a.statut==='active' ? (S.pushIds && S.pushIds.has(a.id) ? ' · <span style="color:var(--ok)">🔔 notifs activées</span>' : ' · <span style="color:var(--danger)">🔕 notifs non activées</span>') : ''}</div>
+      <div class="faint">${telLien(a.telephone)}${a.role==='admin'?' · cabinet':''}${a.role!=='admin' && formuleDe(a)==='mobilite'?' · 🤸 étirements & mobilité':(a.acces_videos?' · option vidéo':'')}${a.statut==='active' ? (S.pushIds && S.pushIds.has(a.id) ? ' · <span style="color:var(--ok)">🔔 notifs activées</span>' : ' · <span style="color:var(--danger)">🔕 notifs non activées</span>') : ''}</div>
     </div>
     ${actions}
   </div>`;
@@ -1642,15 +1654,15 @@ function lecteurVideo(lien){
 const CAT_VIDEO = { cours:'Cours de Pilates', mobilite:'Étirements et mobilité' };
 function catVideo(v){ return (v.categorie === 'mobilite') ? 'mobilite' : 'cours'; }
 function vueVideos(){
-  const cat = S.catVideo === 'mobilite' ? 'mobilite' : 'cours';
+  const cat = (estMobilite() || S.catVideo === 'mobilite') ? 'mobilite' : 'cours';
   const liste = S.videos.filter(v => catVideo(v) === cat);
   const nb = k => S.videos.filter(v => catVideo(v) === k).length;
   return `
     <div class="section-title">Bibliothèque vidéo</div>
-    <div class="seg-msg">
+    ${estMobilite() ? '' : `<div class="seg-msg">
       <button class="btn ${cat==='cours'?'':'soft'} sm grow" data-act="cat-video" data-v="cours">🧘 Cours de Pilates${nb('cours')?` (${nb('cours')})`:''}</button>
       <button class="btn ${cat==='mobilite'?'':'soft'} sm grow" data-act="cat-video" data-v="mobilite">🤸 Étirements et mobilité${nb('mobilite')?` (${nb('mobilite')})`:''}</button>
-    </div>
+    </div>`}
     <div class="faint" style="margin:-4px 0 12px">${cat==='cours'
       ? 'Tu as manqué un cours ? Suis-le en vidéo, quand tu veux.'
       : 'Des exercices d’étirement et de mobilité à faire chez toi, à ton rythme.'}</div>
@@ -1665,7 +1677,7 @@ function vueVideos(){
 }
 
 function vueAdminVideos(){
-  const membres = S.adherentes.filter(a => a.role !== 'admin' && a.statut === 'active');
+  const membres = S.adherentes.filter(a => a.role !== 'admin' && a.statut === 'active' && formuleDe(a) === 'cours');
   const avec = membres.filter(a => a.acces_videos).length;
   return `
     ${['cours','mobilite'].map(k => `
@@ -1696,7 +1708,7 @@ function vueAdminVideos(){
     </form>
 
     <div class="section-title">Option vidéo · ${avec} adhérente${avec>1?'s':''}</div>
-    <div class="faint" style="margin:-4px 0 10px">Ouvre ou ferme l’accès à la bibliothèque vidéo pour chaque adhérente.</div>
+    <div class="faint" style="margin:-4px 0 10px; line-height:1.45">Ouvre ou ferme l’accès à la bibliothèque vidéo pour chaque adhérente en formule Pilates. Celles en formule « Étirements et mobilité » y ont toujours accès (rubrique étirements uniquement).</div>
     <div class="card">${membres.length ? membres.map(a=>`
       <div class="person">
         ${avatar(a)}
@@ -1853,7 +1865,7 @@ function detailCreneau(c){
   const att  = parts.filter(p=>p.statut==='attente');
   const libres = Math.max(0, c.capacite - conf.length);
   const passe = new Date(c.debut) <= new Date();
-  const dispo = S.adherentes.filter(a=>a.role!=='admin' && a.statut==='active' && !parts.some(p=>p.adherente_id===a.id));
+  const dispo = S.adherentes.filter(a=>a.role!=='admin' && a.statut==='active' && formuleDe(a)==='cours' && !parts.some(p=>p.adherente_id===a.id));
 
   const ligne = p => `<div class="person">
       <div class="avatar">${esc(((p.prenom||' ')[0]+(p.nom||' ')[0]).toUpperCase())}</div>
@@ -2014,13 +2026,27 @@ function blocHistorique(){
     </div>
     <div class="card">${onglet==='cours' ? cours : mouv}</div>`;
 }
+function carteFormule(a){
+  const f = formuleDe(a);
+  return `<div class="card stack" style="margin-bottom:16px">
+    <div style="font-weight:700">Formule d’accès</div>
+    <div class="faint" style="margin-top:-6px; line-height:1.45">${f==='cours'
+      ? 'Accès complet : calendrier, réservations, messagerie et bibliothèque vidéo (selon l’option).'
+      : 'Accès limité à la bibliothèque « Étirements et mobilité ». Pas de calendrier, pas de réservation.'}</div>
+    <div class="row">
+      ${['cours','mobilite'].map(k => `<button class="btn ${f===k?'':'soft'} sm grow" data-act="formule" data-id="${a.id}" data-f="${k}" ${f===k?'disabled':''}>${FORMULES[k]}</button>`).join('')}
+    </div>
+  </div>`;
+}
 function detailAdherente(a){
   if (!a) return '<div class="faint">Introuvable.</div>';
+  const mob = formuleDe(a) === 'mobilite';
   return `
     ${carteProfil(a, true)}
+    ${a.role !== 'admin' ? carteFormule(a) : ''}
     ${a.role !== 'admin' && a.telephone ? `<div class="row" style="margin:-6px 0 16px"><a class="btn grow" href="tel:${esc(String(a.telephone).replace(/[^\d+]/g, ''))}" style="text-decoration:none; text-align:center">📞 Appeler ${esc(a.prenom)}</a>
       <button class="btn soft grow" data-act="ecrire-a" data-id="${a.id}">💬 Message</button></div>` : ''}
-    <div class="card stack" style="align-items:center; text-align:center; margin-bottom:16px">
+    ${mob ? '' : `<div class="card stack" style="align-items:center; text-align:center; margin-bottom:16px">
       <div style="font-family:Fraunces,serif; font-size:40px; font-weight:600; line-height:1; color:var(--accent)">${a.credits}</div>
       <div class="muted" style="margin-top:-4px">séance${a.credits>1?'s':''} restante${a.credits>1?'s':''}</div>
       ${detailLots(a.id)}
@@ -2041,7 +2067,7 @@ function detailAdherente(a){
         <button class="btn soft sm" data-act="credits-libre" data-sens="1" data-id="${a.id}">Ajouter</button>
         <button class="btn dangerish sm" data-act="credits-libre" data-sens="-1" data-id="${a.id}">Retirer</button>
       </div>
-    </div>
+    </div>`}
     <div class="card stack">
       <div class="row-between"><span class="muted">Email</span><span>${esc(a.email)}</span></div>
       <div class="row-between"><span class="muted">Date de naissance</span><span>${a.date_naissance ? esc(fExp(a.date_naissance)) + ` (${age(a)} ans)` : '—'}</span></div>
@@ -2134,10 +2160,27 @@ document.addEventListener('click', async (e) => {
     }
 
     case 'statut': await agir(async()=>{
-      const { error } = await sb.from('adherentes').update({statut: el.dataset.val}).eq('id', el.dataset.id);
+      const maj = { statut: el.dataset.val };
+      const f = el.dataset.f;
+      if (f === 'cours' || f === 'mobilite') { maj.formule = f; if (f === 'mobilite') maj.acces_videos = true; }
+      const { error } = await sb.from('adherentes').update(maj).eq('id', el.dataset.id);
       if (error) throw error;
       await chargerAdherentes(); if (S.sheet) S.sheet = null;
-      flash('ok', el.dataset.val === 'active' ? 'Inscription acceptée. Pense à lui attribuer ses séances.' : 'Compte mis à jour.');
+      flash('ok', el.dataset.val !== 'active' ? 'Compte mis à jour.'
+        : f === 'mobilite' ? 'Inscription acceptée en formule Étirements et mobilité.'
+        : 'Inscription acceptée. Pense à lui attribuer ses séances.');
+    }); break;
+
+    case 'formule': await agir(async()=>{
+      const f = el.dataset.f === 'mobilite' ? 'mobilite' : 'cours';
+      const maj = { formule: f };
+      if (f === 'mobilite') maj.acces_videos = true;
+      const { error } = await sb.from('adherentes').update(maj).eq('id', el.dataset.id);
+      if (error) throw error;
+      await chargerAdherentes();
+      flash('ok', f === 'mobilite'
+        ? 'Formule « Étirements et mobilité » : elle ne voit plus le calendrier ni les réservations.'
+        : 'Formule « Cours de Pilates » : accès complet rétabli.');
     }); break;
 
     case 'acces-video': await agir(async()=>{
@@ -2619,11 +2662,11 @@ async function demarrer(session){
   render();
   await chargerProfil();
   if (!S.profil){ render(); return; }
-  S.vue = estAdmin() ? 'planning' : 'cours';
+  S.vue = estAdmin() ? 'planning' : (estMobilite() ? 'videos' : 'cours');
   if (S.profil.statut === 'active' || estAdmin()){
     await Promise.all([chargerCreneaux(), chargerAnnonces()]);
     if (estAdmin()) await chargerAdherentes(); else await Promise.all([chargerHistorique(), chargerLots()]);
-    if (estAdmin() || S.profil.acces_videos) await chargerVideos();
+    if (estAdmin() || S.profil.acces_videos || estMobilite()) await chargerVideos();
     await chargerDemandes();
     try { await chargerMessages(); abonnerMessages(); } catch {}
     if (estAdmin()) { try { await chargerBugs(); } catch {} }
