@@ -358,7 +358,7 @@ const SUPABASE_KEY = 'sb_publishable_bS-fbBuW7ru_xDywDv_A2A_xHGRGUeN';
 const sb = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 /* ------------------------------------------------------------------ état */
-const VERSION = '2026-09-23-r52';
+const VERSION = '2026-09-23-r53';
 const aujourdhui = new Date();
 const S = {
   session:null, profil:null, params:null,
@@ -2020,6 +2020,8 @@ function detailAdherente(a){
       ${a.statut==='active'
         ? `<button class="btn ghost full" data-act="statut" data-id="${a.id}" data-val="inactive">Mettre le compte en pause</button>`
         : `<button class="btn full" data-act="statut" data-id="${a.id}" data-val="active">Réactiver le compte</button>`}
+      ${a.role !== 'admin' ? `<button class="btn dangerish full" data-act="suppr-adherente" data-id="${a.id}" data-nom="${esc(a.prenom + ' ' + a.nom)}">🗑 Supprimer définitivement ce compte</button>
+        <div class="aide" style="text-align:center">Efface la personne, ses séances, son historique et ses messages. Elle pourra recréer un compte plus tard si besoin. « Mettre en pause » suffit pour un simple arrêt.</div>` : ''}
     </div>`;
 }
 /* ------------------------------------------------------------------ events */
@@ -2221,6 +2223,17 @@ document.addEventListener('click', async (e) => {
       if (v==='rappels') chargerRappels().then(render);
       window.scrollTo(0,0); break; }
     case 'menu-notifs': S.sheet = { type:'notifs' }; render(); sb.from('notifications').update({lu:true}).eq('lu',false).then(()=>chargerNotifs().then(render)); break;
+    case 'suppr-adherente': {
+      const nom = el.dataset.nom || 'cette adhérente';
+      if (!confirm(`Supprimer définitivement ${nom} ?\n\nSes séances, son historique et ses messages seront effacés. C’est irréversible.`)) break;
+      if (!confirm(`Dernière vérification : on supprime bien ${nom} ?`)) break;
+      await agir(async()=>{
+        await rpc('admin_supprimer_adherente', { p_adh: el.dataset.id });
+        S.sheet = null;
+        await Promise.all([chargerAdherentes(), chargerCreneaux(), chargerMessages().catch(()=>{})]);
+        flash('ok', `${nom} a été supprimée.`);
+      }); break;
+    }
     case 'menu-bug': S.sheet = { type:'bug' }; render(); chargerBugs().then(render); break;
     case 'bug-statut': await agir(async()=>{
       const { error } = await sb.from('bugs').update({ statut: el.dataset.val }).eq('id', el.dataset.id);
