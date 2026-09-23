@@ -358,7 +358,7 @@ const SUPABASE_KEY = 'sb_publishable_bS-fbBuW7ru_xDywDv_A2A_xHGRGUeN';
 const sb = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 /* ------------------------------------------------------------------ état */
-const VERSION = '2026-09-23-r62';
+const VERSION = '2026-09-23-r63';
 const aujourdhui = new Date();
 const S = {
   session:null, profil:null, params:null,
@@ -544,11 +544,13 @@ function horairesCours(){
     m.set(k, (m.get(k) || 0) + 1);
   });
   if (!m.size) return '';
-  const hh = (h, mn) => `${h}h${String(mn).padStart(2,'0')}`;
+  const hh = (h, mn) => mn ? `${h}h${String(mn).padStart(2,'0')}` : `${h}h`;
+  const duree = n => n % 60 === 0 ? `${n/60} h` : n < 60 ? `${n} min` : `${Math.floor(n/60)} h ${n%60}`;
+  const moment = h => h >= 18 ? ' soir' : h < 12 ? ' matin' : ' après-midi';
   const top = [...m.entries()].sort((a,b) => b[1] - a[1]).slice(0,2).map(([k]) => {
     const [j,h,mn,du] = k.split('|').map(Number);
     const f = new Date(2000,0,1,h,mn + du);
-    return `le ${JOURS_L[j]} de ${hh(h,mn)} à ${hh(f.getHours(), f.getMinutes())}`;
+    return `le ${JOURS_L[j]}${moment(h)}, ${duree(du)} de ${hh(h,mn)} à ${hh(f.getHours(), f.getMinutes())}`;
   });
   return top.join(' et ');
 }
@@ -563,7 +565,7 @@ const CIBLE_DEMANDE = {
   mobilite: { cle:'les_deux', titre:'🧘 Cours de renforcement musculaire des muscles profonds',
     bouton:'Demander l’accès aux cours',
     puces:[
-      'Les cours en petit groupe avec Marine, HORAIRES.',
+      'Les cours en petit groupe avec Marine : HORAIRES.',
       'Le calendrier dans l’appli pour réserver ta place, et l’annuler si tu as un empêchement.',
       'La messagerie de groupe avec les autres adhérentes, en plus de ta conversation privée avec Marine.',
       'Les vidéos des cours, pour rattraper une séance que tu as manquée.'
@@ -576,7 +578,7 @@ function blocDemandeFormule(){
   const enCours = (S.demandesF || []).find(d => d.statut === 'en_attente');
   const derniere = (S.demandesF || []).find(d => d.statut !== 'en_attente');
   const h = horairesCours();
-  const puces = cible.puces.map(p => p.replace('HORAIRES', h || 'chaque semaine — Marine te donnera les horaires'));
+  const puces = cible.puces.map(p => p.replace('HORAIRES', h || 'le lundi soir, 1 h de 19h30 à 20h30'));
   return `<div class="section-title">Envie d’autre chose ?</div>
     <div class="card stack">
     ${enCours ? `
