@@ -358,7 +358,7 @@ const SUPABASE_KEY = 'sb_publishable_bS-fbBuW7ru_xDywDv_A2A_xHGRGUeN';
 const sb = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 /* ------------------------------------------------------------------ état */
-const VERSION = '2026-09-23-r63';
+const VERSION = '2026-09-23-r64';
 const aujourdhui = new Date();
 const S = {
   session:null, profil:null, params:null,
@@ -555,13 +555,6 @@ function horairesCours(){
   return top.join(' et ');
 }
 const CIBLE_DEMANDE = {
-  cours: { cle:'les_deux', titre:'🤸 Étirements et mobilité',
-    bouton:'Demander l’accès aux étirements et à la mobilité',
-    puces:[
-      'Une bibliothèque de vidéos d’étirements et de mobilité, à faire chez toi ou où tu veux, quand tu veux.',
-      'Des documents à consulter ou à imprimer : fiches d’exercices, programmes, conseils.',
-      'Tu gardes bien sûr tes cours et tes réservations : tu ajoutes simplement cet accès en plus.'
-    ] },
   mobilite: { cle:'les_deux', titre:'🧘 Cours de renforcement musculaire des muscles profonds',
     bouton:'Demander l’accès aux cours',
     puces:[
