@@ -358,7 +358,7 @@ const SUPABASE_KEY = 'sb_publishable_bS-fbBuW7ru_xDywDv_A2A_xHGRGUeN';
 const sb = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 /* ------------------------------------------------------------------ état */
-const VERSION = '2026-09-23-r54';
+const VERSION = '2026-09-23-r55';
 const aujourdhui = new Date();
 const S = {
   session:null, profil:null, params:null,
@@ -990,8 +990,8 @@ function logoCabinet(grand){
 }
 function elementsMenu(admin){
   return admin
-    ? [['planning','Planning',ICO.cal],['adherentes','Adhérentes',ICO.users],['messages','Messages',ICO.chat],['videos','Vidéos',ICO.play],['rappels','Rappels',ICO.bell],['reglages','Réglages',ICO.gear]]
-    : [['cours','Les cours',ICO.cal],['mes','Mes cours',ICO.check],['messages','Messages',ICO.chat],...(S.profil.acces_videos?[['videos','Vidéos',ICO.play]]:[]),['compte','Mon compte',ICO.user]];
+    ? [['planning','Planning',ICO.cal],['adherentes','Adhérentes',ICO.users],['messages','Messages',ICO.chat],['videos','Bibliothèque',ICO.play],['rappels','Rappels',ICO.bell],['reglages','Réglages',ICO.gear]]
+    : [['cours','Les cours',ICO.cal],['mes','Mes cours',ICO.check],['messages','Messages',ICO.chat],...(S.profil.acces_videos?[['videos','Bibliothèque',ICO.play]]:[]),['compte','Mon compte',ICO.user]];
 }
 function feuilleMenu(){
   const admin = estAdmin();
@@ -1028,8 +1028,8 @@ async function envoyerLogo(fichier){
 }
 function barreOnglets(admin){
   const items = admin
-    ? [['planning','Planning',ICO.cal],['adherentes','Adhérentes',ICO.users],['messages','Messages',ICO.chat],['videos','Vidéos',ICO.play],['rappels','Rappels',ICO.bell],['reglages','Réglages',ICO.gear]]
-    : [['cours','Les cours',ICO.cal],['mes','Mes cours',ICO.check],['messages','Messages',ICO.chat],...(S.profil.acces_videos?[['videos','Vidéos',ICO.play]]:[]),['compte','Mon compte',ICO.user]];
+    ? [['planning','Planning',ICO.cal],['adherentes','Adhérentes',ICO.users],['messages','Messages',ICO.chat],['videos','Bibliothèque',ICO.play],['rappels','Rappels',ICO.bell],['reglages','Réglages',ICO.gear]]
+    : [['cours','Les cours',ICO.cal],['mes','Mes cours',ICO.check],['messages','Messages',ICO.chat],...(S.profil.acces_videos?[['videos','Bibliothèque',ICO.play]]:[]),['compte','Mon compte',ICO.user]];
   const nMsg = totalNonLus();
   const nAdh = admin ? aTraiter() : 0;
   if (S.profil.statut !== 'active' && !admin) return '';
@@ -1639,34 +1639,51 @@ function lecteurVideo(lien){
   return `<a class="btn full" href="${esc(l)}" target="_blank" rel="noopener">Ouvrir la vidéo</a>`;
 }
 
+const CAT_VIDEO = { cours:'Cours de Pilates', mobilite:'Étirements et mobilité' };
+function catVideo(v){ return (v.categorie === 'mobilite') ? 'mobilite' : 'cours'; }
 function vueVideos(){
+  const cat = S.catVideo === 'mobilite' ? 'mobilite' : 'cours';
+  const liste = S.videos.filter(v => catVideo(v) === cat);
+  const nb = k => S.videos.filter(v => catVideo(v) === k).length;
   return `
-    <div class="section-title">Vidéos des cours</div>
-    <div class="faint" style="margin:-4px 0 12px">Tu as manqué un cours ? Suis-le en vidéo. Chaque vidéo s’efface automatiquement à la date indiquée.</div>
-    ${S.videos.length ? `<div class="stack">${S.videos.map(v=>`
+    <div class="section-title">Bibliothèque vidéo</div>
+    <div class="seg-msg">
+      <button class="btn ${cat==='cours'?'':'soft'} sm grow" data-act="cat-video" data-v="cours">🧘 Cours de Pilates${nb('cours')?` (${nb('cours')})`:''}</button>
+      <button class="btn ${cat==='mobilite'?'':'soft'} sm grow" data-act="cat-video" data-v="mobilite">🤸 Étirements et mobilité${nb('mobilite')?` (${nb('mobilite')})`:''}</button>
+    </div>
+    <div class="faint" style="margin:-4px 0 12px">${cat==='cours'
+      ? 'Tu as manqué un cours ? Suis-le en vidéo, quand tu veux.'
+      : 'Des exercices d’étirement et de mobilité à faire chez toi, à ton rythme.'}</div>
+    ${liste.length ? `<div class="stack">${liste.map(v=>`
       <div class="card stack">
         <div><div style="font-weight:700">${esc(v.titre)}</div>
           <div class="faint">Disponible jusqu’au ${esc(fJusqua(new Date(v.expire_le)))}</div></div>
         ${v.note ? `<div style="font-size:14px; line-height:1.45">${esc(v.note)}</div>` : ''}
         ${lecteurVideo(v.lien)}
       </div>`).join('')}</div>`
-      : `<div class="empty">${ICO.play}<div>Aucune vidéo disponible pour le moment.</div></div>`}`;
+      : `<div class="empty">${ICO.play}<div>Aucune vidéo dans cette rubrique pour le moment.</div></div>`}`;
 }
 
 function vueAdminVideos(){
   const membres = S.adherentes.filter(a => a.role !== 'admin' && a.statut === 'active');
   const avec = membres.filter(a => a.acces_videos).length;
   return `
-    <div class="section-title">Vidéos en ligne</div>
-    <div class="card">${S.videos.length ? S.videos.map(v=>`
-      <div class="person">
-        <div class="avatar" style="font-size:13px">▶</div>
-        <div class="grow"><div class="name">${esc(v.titre)}</div>
-          <div class="faint">S’efface le ${esc(fJusqua(new Date(v.expire_le)))}</div></div>
-        <button class="btn dangerish xs" data-act="suppr-video" data-id="${v.id}">Retirer</button>
-      </div>`).join('') : '<div class="faint">Aucune vidéo en ligne.</div>'}</div>
+    ${['cours','mobilite'].map(k => `
+      <div class="section-title">${CAT_VIDEO[k]} · ${S.videos.filter(v=>catVideo(v)===k).length}</div>
+      <div class="card">${S.videos.filter(v=>catVideo(v)===k).length ? S.videos.filter(v=>catVideo(v)===k).map(v=>`
+        <div class="person">
+          <div class="avatar" style="font-size:13px">▶</div>
+          <div class="grow"><div class="name">${esc(v.titre)}</div>
+            <div class="faint">S’efface le ${esc(fJusqua(new Date(v.expire_le)))}</div></div>
+          <button class="btn dangerish xs" data-act="suppr-video" data-id="${v.id}">Retirer</button>
+        </div>`).join('') : '<div class="faint">Aucune vidéo dans cette rubrique.</div>'}</div>`).join('')}
 
     <form id="fvideo" class="card" style="margin-top:10px">
+      <div class="field"><label for="v-cat">Rubrique</label>
+        <select id="v-cat" name="categorie">
+          <option value="cours">🧘 Cours de Pilates</option>
+          <option value="mobilite">🤸 Étirements et mobilité</option>
+        </select></div>
       <div class="field"><label for="v-titre">Titre</label><input id="v-titre" name="titre" value="Cours du lundi soir" required></div>
       <div class="field"><label for="v-lien">Lien de la vidéo</label>
         <input id="v-lien" name="lien" type="url" inputmode="url" placeholder="https://youtu.be/…" required></div>
@@ -1679,7 +1696,7 @@ function vueAdminVideos(){
     </form>
 
     <div class="section-title">Option vidéo · ${avec} adhérente${avec>1?'s':''}</div>
-    <div class="faint" style="margin:-4px 0 10px">Ouvre ou ferme l’accès à la page Vidéos pour chaque adhérente.</div>
+    <div class="faint" style="margin:-4px 0 10px">Ouvre ou ferme l’accès à la bibliothèque vidéo pour chaque adhérente.</div>
     <div class="card">${membres.length ? membres.map(a=>`
       <div class="person">
         ${avatar(a)}
@@ -2059,6 +2076,7 @@ document.addEventListener('click', async (e) => {
     case 'rafraichir': await agir(async()=>{ await chargerProfil(); await chargerCreneaux(); await chargerAnnonces(); }); break;
 
     case 'planning-vue': S.planningVue = el.dataset.v; render(); break;
+    case 'cat-video': S.catVideo = el.dataset.v; render(); break;
     case 'cours-vue': {
       S.coursVue = el.dataset.v;
       if (S.coursVue === 'calendrier' && !S.jourSel){
@@ -2555,7 +2573,8 @@ document.addEventListener('submit', async (e) => {
     const fin = new Date(d.expire);
     if (!(fin > new Date())) throw new Error('La date d’effacement doit être dans le futur.');
     const { error } = await sb.from('videos').insert({
-      titre: d.titre.trim() || 'Cours du lundi soir', lien, note: (d.note||'').trim(), expire_le: fin.toISOString()
+      titre: d.titre.trim() || 'Cours du lundi soir', lien, note: (d.note||'').trim(), expire_le: fin.toISOString(),
+      categorie: d.categorie === 'mobilite' ? 'mobilite' : 'cours'
     });
     if (error) throw error;
     await chargerVideos(); flash('ok', `Vidéo en ligne jusqu’au ${fJusqua(fin)}.`);
