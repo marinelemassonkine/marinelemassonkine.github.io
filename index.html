@@ -358,7 +358,7 @@ const SUPABASE_KEY = 'sb_publishable_bS-fbBuW7ru_xDywDv_A2A_xHGRGUeN';
 const sb = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 /* ------------------------------------------------------------------ état */
-const VERSION = '2026-09-23-r56';
+const VERSION = '2026-09-23-r57';
 const aujourdhui = new Date();
 const S = {
   session:null, profil:null, params:null,
@@ -623,9 +623,19 @@ async function chargerAdherentes(){
   }
 }
 const estAdmin = () => S.profil && S.profil.role === 'admin';
-const estMobilite = () => !!S.profil && S.profil.role !== 'admin' && S.profil.formule === 'mobilite';
-const FORMULES = { cours:'🧘 Cours de Pilates', mobilite:'🤸 Étirements et mobilité' };
-const formuleDe = a => (a && a.formule === 'mobilite') ? 'mobilite' : 'cours';
+const FORMULES = { cours:'🧘 Cours de Pilates', mobilite:'🤸 Étirements et mobilité', les_deux:'✨ Les deux' };
+const DETAIL_FORMULE = {
+  cours:'Calendrier, réservations, messagerie et vidéos des cours de Pilates.',
+  mobilite:'Uniquement la bibliothèque « Étirements et mobilité ». Pas de calendrier, pas de réservation.',
+  les_deux:'Accès complet : cours de Pilates (calendrier, réservations, messagerie) et bibliothèque d’étirements et de mobilité.'
+};
+const formuleDe = a => (a && (a.formule === 'mobilite' || a.formule === 'les_deux')) ? a.formule : 'cours';
+const maFormule = () => (S.profil && S.profil.role !== 'admin') ? formuleDe(S.profil) : 'les_deux';
+const estMobilite = () => maFormule() === 'mobilite';
+const peutReserver = () => maFormule() !== 'mobilite';
+const mesRubriques = () => { const f = maFormule();
+  return f === 'mobilite' ? ['mobilite'] : f === 'les_deux' ? ['cours','mobilite'] : ['cours']; };
+const aBibliotheque = () => !!S.profil && (estMobilite() || maFormule() === 'les_deux' || !!S.profil.acces_videos);
 function telLien(n){
   if (!n) return '—';
   const num = String(n).replace(/[^\d+]/g, '');
@@ -671,7 +681,7 @@ async function actualiser(silencieux){
       t.push(chargerCreneaux(), chargerAnnonces(), chargerDemandes(), chargerMessages().catch(() => {}));
       if (estAdmin()) t.push(chargerAdherentes(), chargerRappels(), chargerBugs());
       else t.push(chargerHistorique(), chargerLots());
-      if (estAdmin() || S.profil.acces_videos || estMobilite()) t.push(chargerVideos());
+      if (estAdmin() || aBibliotheque()) t.push(chargerVideos());
       if (S.vue === 'compte') t.push(chargerMouvements());
     }
     await Promise.all(t);
@@ -996,7 +1006,7 @@ function elementsMenu(admin){
   return admin
     ? [['planning','Planning',ICO.cal],['adherentes','Adhérentes',ICO.users],['messages','Messages',ICO.chat],['videos','Bibliothèque',ICO.play],['rappels','Rappels',ICO.bell],['reglages','Réglages',ICO.gear]]
     : estMobilite() ? [['videos','Bibliothèque',ICO.play],['compte','Mon compte',ICO.user]]
-    : [['cours','Les cours',ICO.cal],['mes','Mes cours',ICO.check],['messages','Messages',ICO.chat],...(S.profil.acces_videos?[['videos','Bibliothèque',ICO.play]]:[]),['compte','Mon compte',ICO.user]];
+    : [['cours','Les cours',ICO.cal],['mes','Mes cours',ICO.check],['messages','Messages',ICO.chat],...(aBibliotheque()?[['videos','Bibliothèque',ICO.play]]:[]),['compte','Mon compte',ICO.user]];
 }
 function feuilleMenu(){
   const admin = estAdmin();
@@ -1035,7 +1045,7 @@ function barreOnglets(admin){
   const items = admin
     ? [['planning','Planning',ICO.cal],['adherentes','Adhérentes',ICO.users],['messages','Messages',ICO.chat],['videos','Bibliothèque',ICO.play],['rappels','Rappels',ICO.bell],['reglages','Réglages',ICO.gear]]
     : estMobilite() ? [['videos','Bibliothèque',ICO.play],['compte','Mon compte',ICO.user]]
-    : [['cours','Les cours',ICO.cal],['mes','Mes cours',ICO.check],['messages','Messages',ICO.chat],...(S.profil.acces_videos?[['videos','Bibliothèque',ICO.play]]:[]),['compte','Mon compte',ICO.user]];
+    : [['cours','Les cours',ICO.cal],['mes','Mes cours',ICO.check],['messages','Messages',ICO.chat],...(aBibliotheque()?[['videos','Bibliothèque',ICO.play]]:[]),['compte','Mon compte',ICO.user]];
   const nMsg = totalNonLus();
   const nAdh = admin ? aTraiter() : 0;
   if (S.profil.statut !== 'active' && !admin) return '';
@@ -1125,7 +1135,7 @@ function vueAdherente(){
   if (estMobilite()) return (S.vue === 'compte') ? vueCompte() : vueVideos();
   if (S.vue === 'mes')    return vueMesCours();
   if (S.vue === 'messages') return vueMessages();
-  if (S.vue === 'videos' && (S.profil.acces_videos || estMobilite())) return vueVideos();
+  if (S.vue === 'videos' && aBibliotheque()) return vueVideos();
   if (S.vue === 'compte') return vueCompte();
   return vueCoursDispo();
 }
@@ -1530,7 +1540,7 @@ function vueAdminAdherentes(){
   return `
     <div class="field"><input id="q" placeholder="Rechercher une adhérente…" value="${esc(S.recherche)}" data-act="recherche"></div>
     ${blocDemandesAdmin()}
-    ${attente.length ? '<div class="faint" style="margin-bottom:-4px">Tu décides qui rejoint le cabinet, et avec quelle formule : <b>Pilates</b> (calendrier, réservations, messagerie) ou <b>Mobilité</b> (bibliothèque d’étirements uniquement). La formule se change ensuite dans « Gérer ».</div>' : ''}
+    ${attente.length ? '<div class="faint" style="margin-bottom:-4px">Tu décides qui rejoint le cabinet, et avec quelle formule : <b>Pilates</b> (calendrier, réservations, messagerie), <b>Mobilité</b> (bibliothèque d’étirements uniquement) ou <b>Les deux</b>. La formule se change ensuite dans « Gérer ».</div>' : ''}
     ${bloc('Demandes d’inscription', attente)}
     ${bloc('Adhérentes', actives)}
     ${bloc('En pause', inactives)}
@@ -1545,6 +1555,7 @@ function ligneAdherente(a){
     actions = `<div class="stack" style="gap:6px">
                  <button class="btn xs" data-act="statut" data-id="${a.id}" data-val="active" data-f="cours">✓ Pilates</button>
                  <button class="btn soft xs" data-act="statut" data-id="${a.id}" data-val="active" data-f="mobilite">✓ Mobilité</button>
+                 <button class="btn soft xs" data-act="statut" data-id="${a.id}" data-val="active" data-f="les_deux">✓ Les deux</button>
                  <button class="btn dangerish xs" data-act="refuser" data-id="${a.id}">Refuser</button></div>`;
   } else if (a.statut === 'refuse') {
     actions = `<button class="btn soft xs" data-act="statut" data-id="${a.id}" data-val="active">Accepter finalement</button>`;
@@ -1556,7 +1567,7 @@ function ligneAdherente(a){
     ${avatar(a)}
     <div class="grow">
       <div class="name">${esc(a.prenom)} ${esc(a.nom)}</div>
-      <div class="faint">${telLien(a.telephone)}${a.role==='admin'?' · cabinet':''}${a.role!=='admin' && formuleDe(a)==='mobilite'?' · 🤸 étirements & mobilité':(a.acces_videos?' · option vidéo':'')}${a.statut==='active' ? (S.pushIds && S.pushIds.has(a.id) ? ' · <span style="color:var(--ok)">🔔 notifs activées</span>' : ' · <span style="color:var(--danger)">🔕 notifs non activées</span>') : ''}</div>
+      <div class="faint">${telLien(a.telephone)}${a.role==='admin'?' · cabinet':''}${a.role!=='admin' && formuleDe(a)==='mobilite'?' · 🤸 étirements & mobilité':a.role!=='admin' && formuleDe(a)==='les_deux'?' · ✨ les deux':(a.acces_videos?' · option vidéo':'')}${a.statut==='active' ? (S.pushIds && S.pushIds.has(a.id) ? ' · <span style="color:var(--ok)">🔔 notifs activées</span>' : ' · <span style="color:var(--danger)">🔕 notifs non activées</span>') : ''}</div>
     </div>
     ${actions}
   </div>`;
@@ -1654,14 +1665,15 @@ function lecteurVideo(lien){
 const CAT_VIDEO = { cours:'Cours de Pilates', mobilite:'Étirements et mobilité' };
 function catVideo(v){ return (v.categorie === 'mobilite') ? 'mobilite' : 'cours'; }
 function vueVideos(){
-  const cat = (estMobilite() || S.catVideo === 'mobilite') ? 'mobilite' : 'cours';
+  const rubs = mesRubriques();
+  const cat = rubs.length === 1 ? rubs[0] : (S.catVideo === 'mobilite' ? 'mobilite' : 'cours');
   const liste = S.videos.filter(v => catVideo(v) === cat);
   const nb = k => S.videos.filter(v => catVideo(v) === k).length;
+  const EMO = { cours:'🧘 Cours de Pilates', mobilite:'🤸 Étirements et mobilité' };
   return `
     <div class="section-title">Bibliothèque vidéo</div>
-    ${estMobilite() ? '' : `<div class="seg-msg">
-      <button class="btn ${cat==='cours'?'':'soft'} sm grow" data-act="cat-video" data-v="cours">🧘 Cours de Pilates${nb('cours')?` (${nb('cours')})`:''}</button>
-      <button class="btn ${cat==='mobilite'?'':'soft'} sm grow" data-act="cat-video" data-v="mobilite">🤸 Étirements et mobilité${nb('mobilite')?` (${nb('mobilite')})`:''}</button>
+    ${rubs.length < 2 ? '' : `<div class="seg-msg">
+      ${rubs.map(k => `<button class="btn ${cat===k?'':'soft'} sm grow" data-act="cat-video" data-v="${k}">${EMO[k]}${nb(k)?` (${nb(k)})`:''}</button>`).join('')}
     </div>`}
     <div class="faint" style="margin:-4px 0 12px">${cat==='cours'
       ? 'Tu as manqué un cours ? Suis-le en vidéo, quand tu veux.'
@@ -1708,7 +1720,7 @@ function vueAdminVideos(){
     </form>
 
     <div class="section-title">Option vidéo · ${avec} adhérente${avec>1?'s':''}</div>
-    <div class="faint" style="margin:-4px 0 10px; line-height:1.45">Ouvre ou ferme l’accès à la bibliothèque vidéo pour chaque adhérente en formule Pilates. Celles en formule « Étirements et mobilité » y ont toujours accès (rubrique étirements uniquement).</div>
+    <div class="faint" style="margin:-4px 0 10px; line-height:1.45">Ouvre ou ferme l’accès aux vidéos pour les adhérentes en formule Pilates seule. Les formules « Étirements et mobilité » et « Les deux » ont déjà l’accès à leur(s) rubrique(s).</div>
     <div class="card">${membres.length ? membres.map(a=>`
       <div class="person">
         ${avatar(a)}
@@ -1865,7 +1877,7 @@ function detailCreneau(c){
   const att  = parts.filter(p=>p.statut==='attente');
   const libres = Math.max(0, c.capacite - conf.length);
   const passe = new Date(c.debut) <= new Date();
-  const dispo = S.adherentes.filter(a=>a.role!=='admin' && a.statut==='active' && formuleDe(a)==='cours' && !parts.some(p=>p.adherente_id===a.id));
+  const dispo = S.adherentes.filter(a=>a.role!=='admin' && a.statut==='active' && formuleDe(a)!=='mobilite' && !parts.some(p=>p.adherente_id===a.id));
 
   const ligne = p => `<div class="person">
       <div class="avatar">${esc(((p.prenom||' ')[0]+(p.nom||' ')[0]).toUpperCase())}</div>
@@ -2030,11 +2042,9 @@ function carteFormule(a){
   const f = formuleDe(a);
   return `<div class="card stack" style="margin-bottom:16px">
     <div style="font-weight:700">Formule d’accès</div>
-    <div class="faint" style="margin-top:-6px; line-height:1.45">${f==='cours'
-      ? 'Accès complet : calendrier, réservations, messagerie et bibliothèque vidéo (selon l’option).'
-      : 'Accès limité à la bibliothèque « Étirements et mobilité ». Pas de calendrier, pas de réservation.'}</div>
-    <div class="row">
-      ${['cours','mobilite'].map(k => `<button class="btn ${f===k?'':'soft'} sm grow" data-act="formule" data-id="${a.id}" data-f="${k}" ${f===k?'disabled':''}>${FORMULES[k]}</button>`).join('')}
+    <div class="faint" style="margin-top:-6px; line-height:1.45">${DETAIL_FORMULE[f]}</div>
+    <div class="stack" style="gap:8px">
+      ${['cours','mobilite','les_deux'].map(k => `<button class="btn ${f===k?'':'soft'} full" data-act="formule" data-id="${a.id}" data-f="${k}" ${f===k?'disabled':''}>${FORMULES[k]}${f===k?' ✓':''}</button>`).join('')}
     </div>
   </div>`;
 }
@@ -2162,25 +2172,27 @@ document.addEventListener('click', async (e) => {
     case 'statut': await agir(async()=>{
       const maj = { statut: el.dataset.val };
       const f = el.dataset.f;
-      if (f === 'cours' || f === 'mobilite') { maj.formule = f; if (f === 'mobilite') maj.acces_videos = true; }
+      if (f === 'cours' || f === 'mobilite' || f === 'les_deux') { maj.formule = f; if (f !== 'cours') maj.acces_videos = true; }
       const { error } = await sb.from('adherentes').update(maj).eq('id', el.dataset.id);
       if (error) throw error;
       await chargerAdherentes(); if (S.sheet) S.sheet = null;
       flash('ok', el.dataset.val !== 'active' ? 'Compte mis à jour.'
         : f === 'mobilite' ? 'Inscription acceptée en formule Étirements et mobilité.'
+        : f === 'les_deux' ? 'Inscription acceptée avec les deux accès. Pense à lui attribuer ses séances.'
         : 'Inscription acceptée. Pense à lui attribuer ses séances.');
     }); break;
 
     case 'formule': await agir(async()=>{
-      const f = el.dataset.f === 'mobilite' ? 'mobilite' : 'cours';
+      const f = ['cours','mobilite','les_deux'].includes(el.dataset.f) ? el.dataset.f : 'cours';
       const maj = { formule: f };
-      if (f === 'mobilite') maj.acces_videos = true;
+      if (f !== 'cours') maj.acces_videos = true;
       const { error } = await sb.from('adherentes').update(maj).eq('id', el.dataset.id);
       if (error) throw error;
       await chargerAdherentes();
       flash('ok', f === 'mobilite'
         ? 'Formule « Étirements et mobilité » : elle ne voit plus le calendrier ni les réservations.'
-        : 'Formule « Cours de Pilates » : accès complet rétabli.');
+        : f === 'les_deux' ? 'Formule « Les deux » : cours de Pilates et bibliothèque d’étirements.'
+        : 'Formule « Cours de Pilates » : calendrier et réservations.');
     }); break;
 
     case 'acces-video': await agir(async()=>{
@@ -2666,7 +2678,7 @@ async function demarrer(session){
   if (S.profil.statut === 'active' || estAdmin()){
     await Promise.all([chargerCreneaux(), chargerAnnonces()]);
     if (estAdmin()) await chargerAdherentes(); else await Promise.all([chargerHistorique(), chargerLots()]);
-    if (estAdmin() || S.profil.acces_videos || estMobilite()) await chargerVideos();
+    if (estAdmin() || aBibliotheque()) await chargerVideos();
     await chargerDemandes();
     try { await chargerMessages(); abonnerMessages(); } catch {}
     if (estAdmin()) { try { await chargerBugs(); } catch {} }
