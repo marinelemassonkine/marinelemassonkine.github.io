@@ -358,7 +358,7 @@ const SUPABASE_KEY = 'sb_publishable_bS-fbBuW7ru_xDywDv_A2A_xHGRGUeN';
 const sb = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 /* ------------------------------------------------------------------ état */
-const VERSION = '2026-09-23-r57';
+const VERSION = '2026-09-23-r58';
 const aujourdhui = new Date();
 const S = {
   session:null, profil:null, params:null,
@@ -623,11 +623,11 @@ async function chargerAdherentes(){
   }
 }
 const estAdmin = () => S.profil && S.profil.role === 'admin';
-const FORMULES = { cours:'🧘 Cours de Pilates', mobilite:'🤸 Étirements et mobilité', les_deux:'✨ Les deux' };
+const FORMULES = { cours:'🧘 Cours de renforcement musculaire des muscles profonds', mobilite:'🤸 Étirements et mobilité', les_deux:'✨ Les deux' };
 const DETAIL_FORMULE = {
-  cours:'Calendrier, réservations, messagerie et vidéos des cours de Pilates.',
+  cours:'Calendrier, réservations, messagerie et vidéos des cours de renforcement musculaire des muscles profonds.',
   mobilite:'Uniquement la bibliothèque « Étirements et mobilité ». Pas de calendrier, pas de réservation.',
-  les_deux:'Accès complet : cours de Pilates (calendrier, réservations, messagerie) et bibliothèque d’étirements et de mobilité.'
+  les_deux:'Accès complet : cours de renforcement musculaire des muscles profonds (calendrier, réservations, messagerie) et bibliothèque d’étirements et de mobilité.'
 };
 const formuleDe = a => (a && (a.formule === 'mobilite' || a.formule === 'les_deux')) ? a.formule : 'cours';
 const maFormule = () => (S.profil && S.profil.role !== 'admin') ? formuleDe(S.profil) : 'les_deux';
@@ -1540,7 +1540,7 @@ function vueAdminAdherentes(){
   return `
     <div class="field"><input id="q" placeholder="Rechercher une adhérente…" value="${esc(S.recherche)}" data-act="recherche"></div>
     ${blocDemandesAdmin()}
-    ${attente.length ? '<div class="faint" style="margin-bottom:-4px">Tu décides qui rejoint le cabinet, et avec quelle formule : <b>Pilates</b> (calendrier, réservations, messagerie), <b>Mobilité</b> (bibliothèque d’étirements uniquement) ou <b>Les deux</b>. La formule se change ensuite dans « Gérer ».</div>' : ''}
+    ${attente.length ? '<div class="faint" style="margin-bottom:-4px">Tu décides qui rejoint le cabinet, et avec quelle formule : <b>Renforcement musculaire</b> (calendrier, réservations, messagerie), <b>Mobilité</b> (bibliothèque d’étirements uniquement) ou <b>Les deux</b>. La formule se change ensuite dans « Gérer ».</div>' : ''}
     ${bloc('Demandes d’inscription', attente)}
     ${bloc('Adhérentes', actives)}
     ${bloc('En pause', inactives)}
@@ -1553,7 +1553,7 @@ function ligneAdherente(a){
   let actions;
   if (a.statut === 'en_attente') {
     actions = `<div class="stack" style="gap:6px">
-                 <button class="btn xs" data-act="statut" data-id="${a.id}" data-val="active" data-f="cours">✓ Pilates</button>
+                 <button class="btn xs" data-act="statut" data-id="${a.id}" data-val="active" data-f="cours">✓ Renforcement</button>
                  <button class="btn soft xs" data-act="statut" data-id="${a.id}" data-val="active" data-f="mobilite">✓ Mobilité</button>
                  <button class="btn soft xs" data-act="statut" data-id="${a.id}" data-val="active" data-f="les_deux">✓ Les deux</button>
                  <button class="btn dangerish xs" data-act="refuser" data-id="${a.id}">Refuser</button></div>`;
@@ -1662,14 +1662,14 @@ function lecteurVideo(lien){
   return `<a class="btn full" href="${esc(l)}" target="_blank" rel="noopener">Ouvrir la vidéo</a>`;
 }
 
-const CAT_VIDEO = { cours:'Cours de Pilates', mobilite:'Étirements et mobilité' };
+const CAT_VIDEO = { cours:'Cours de renforcement musculaire', mobilite:'Étirements et mobilité' };
 function catVideo(v){ return (v.categorie === 'mobilite') ? 'mobilite' : 'cours'; }
 function vueVideos(){
   const rubs = mesRubriques();
   const cat = rubs.length === 1 ? rubs[0] : (S.catVideo === 'mobilite' ? 'mobilite' : 'cours');
   const liste = S.videos.filter(v => catVideo(v) === cat);
   const nb = k => S.videos.filter(v => catVideo(v) === k).length;
-  const EMO = { cours:'🧘 Cours de Pilates', mobilite:'🤸 Étirements et mobilité' };
+  const EMO = { cours:'🧘 Cours de renforcement', mobilite:'🤸 Étirements et mobilité' };
   return `
     <div class="section-title">Bibliothèque vidéo</div>
     ${rubs.length < 2 ? '' : `<div class="seg-msg">
@@ -1705,7 +1705,7 @@ function vueAdminVideos(){
     <form id="fvideo" class="card" style="margin-top:10px">
       <div class="field"><label for="v-cat">Rubrique</label>
         <select id="v-cat" name="categorie">
-          <option value="cours">🧘 Cours de Pilates</option>
+          <option value="cours">🧘 Cours de renforcement musculaire</option>
           <option value="mobilite">🤸 Étirements et mobilité</option>
         </select></div>
       <div class="field"><label for="v-titre">Titre</label><input id="v-titre" name="titre" value="Cours du lundi soir" required></div>
@@ -1720,7 +1720,7 @@ function vueAdminVideos(){
     </form>
 
     <div class="section-title">Option vidéo · ${avec} adhérente${avec>1?'s':''}</div>
-    <div class="faint" style="margin:-4px 0 10px; line-height:1.45">Ouvre ou ferme l’accès aux vidéos pour les adhérentes en formule Pilates seule. Les formules « Étirements et mobilité » et « Les deux » ont déjà l’accès à leur(s) rubrique(s).</div>
+    <div class="faint" style="margin:-4px 0 10px; line-height:1.45">Ouvre ou ferme l’accès aux vidéos pour les adhérentes en formule renforcement musculaire seule. Les formules « Étirements et mobilité » et « Les deux » ont déjà l’accès à leur(s) rubrique(s).</div>
     <div class="card">${membres.length ? membres.map(a=>`
       <div class="person">
         ${avatar(a)}
@@ -2191,8 +2191,8 @@ document.addEventListener('click', async (e) => {
       await chargerAdherentes();
       flash('ok', f === 'mobilite'
         ? 'Formule « Étirements et mobilité » : elle ne voit plus le calendrier ni les réservations.'
-        : f === 'les_deux' ? 'Formule « Les deux » : cours de Pilates et bibliothèque d’étirements.'
-        : 'Formule « Cours de Pilates » : calendrier et réservations.');
+        : f === 'les_deux' ? 'Formule « Les deux » : cours de renforcement musculaire et bibliothèque d’étirements.'
+        : 'Formule « Cours de renforcement musculaire » : calendrier et réservations.');
     }); break;
 
     case 'acces-video': await agir(async()=>{
