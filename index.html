@@ -358,11 +358,11 @@ const SUPABASE_KEY = 'sb_publishable_bS-fbBuW7ru_xDywDv_A2A_xHGRGUeN';
 const sb = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 /* ------------------------------------------------------------------ état */
-const VERSION = '2026-09-23-r60';
+const VERSION = '2026-09-23-r61';
 const aujourdhui = new Date();
 const S = {
   session:null, profil:null, params:null,
-  vue:'cours', creneaux:[], adherentes:[], mouvements:[], historique:[], annonces:[], videos:[], notifs:[], lots:[], demandes:[], demandesF:[], rappels:[], msgGroupe:[], msgPrives:[], lectures:{}, conv:null,
+  vue:'cours', creneaux:[], adherentes:[], mouvements:[], historique:[], annonces:[], videos:[], notifs:[], lots:[], demandes:[], demandesF:[], docs:[], rappels:[], msgGroupe:[], msgPrives:[], lectures:{}, conv:null,
   planningVue:'calendrier', coursVue:'liste',
   mois:new Date(aujourdhui.getFullYear(), aujourdhui.getMonth(), 1),
   jourSel:null,
@@ -648,6 +648,20 @@ async function chargerNotifs(){
   const { data } = await sb.from('notifications').select('*').order('cree_le', { ascending:false }).limit(40);
   S.notifs = data || [];
 }
+async function chargerDocs(){
+  try {
+    const { data } = await sb.from('documents').select('*').order('cree_le', { ascending:false });
+    S.docs = data || [];
+  } catch { S.docs = S.docs || []; }
+}
+function icoDoc(lien){
+  const l = (lien||'').toLowerCase();
+  if (/\.pdf(\?|$)/.test(l)) return '📕';
+  if (/\.(docx?|odt|rtf)(\?|$)/.test(l)) return '📘';
+  if (/\.(xlsx?|csv|ods)(\?|$)/.test(l)) return '📗';
+  if (/\.(png|jpe?g|webp|gif|heic)(\?|$)/.test(l)) return '🖼';
+  return '📄';
+}
 async function chargerVideos(){
   const { data } = await sb.from('videos').select('*').order('cree_le', { ascending:false });
   S.videos = (data || []).filter(v => new Date(v.expire_le) > new Date());
@@ -734,7 +748,7 @@ async function actualiser(silencieux){
       t.push(chargerCreneaux(), chargerAnnonces(), chargerDemandes(), chargerMessages().catch(() => {}));
       if (estAdmin()) t.push(chargerAdherentes(), chargerRappels(), chargerBugs());
       else t.push(chargerHistorique(), chargerLots());
-      if (estAdmin() || aBibliotheque()) t.push(chargerVideos());
+      if (estAdmin() || aBibliotheque()) t.push(chargerVideos(), chargerDocs());
       if (S.vue === 'compte') t.push(chargerMouvements());
     }
     await Promise.all(t);
@@ -1723,25 +1737,42 @@ function catVideo(v){ return (v.categorie === 'mobilite') ? 'mobilite' : 'cours'
 function vueVideos(){
   const rubs = mesRubriques();
   const cat = rubs.length === 1 ? rubs[0] : (S.catVideo === 'mobilite' ? 'mobilite' : 'cours');
+  const cote = S.coteBiblio === 'docs' ? 'docs' : 'videos';
   const liste = S.videos.filter(v => catVideo(v) === cat);
-  const nb = k => S.videos.filter(v => catVideo(v) === k).length;
+  const docs = (S.docs || []).filter(v => catVideo(v) === cat);
+  const nb = k => S.videos.filter(v => catVideo(v) === k).length + (S.docs || []).filter(v => catVideo(v) === k).length;
   const EMO = { cours:'🧘 Cours de renforcement', mobilite:'🤸 Étirements et mobilité' };
   return `
-    <div class="section-title">Bibliothèque vidéo</div>
-    ${rubs.length < 2 ? '' : `<div class="seg-msg">
+    <div class="section-title">Bibliothèque</div>
+    <div class="seg-msg">
+      <button class="btn ${cote==='videos'?'':'soft'} sm grow" data-act="cote-biblio" data-v="videos">🎬 Vidéos${liste.length?` (${liste.length})`:''}</button>
+      <button class="btn ${cote==='docs'?'':'soft'} sm grow" data-act="cote-biblio" data-v="docs">📄 Documents${docs.length?` (${docs.length})`:''}</button>
+    </div>
+    ${rubs.length < 2 ? '' : `<div class="seg-msg" style="margin-top:-4px">
       ${rubs.map(k => `<button class="btn ${cat===k?'':'soft'} sm grow" data-act="cat-video" data-v="${k}">${EMO[k]}${nb(k)?` (${nb(k)})`:''}</button>`).join('')}
     </div>`}
-    <div class="faint" style="margin:-4px 0 12px">${cat==='cours'
-      ? 'Tu as manqué un cours ? Suis-le en vidéo, quand tu veux.'
-      : 'Des exercices d’étirement et de mobilité à faire chez toi, à ton rythme.'}</div>
-    ${liste.length ? `<div class="stack">${liste.map(v=>`
-      <div class="card stack">
-        <div><div style="font-weight:700">${esc(v.titre)}</div>
-          <div class="faint">Disponible jusqu’au ${esc(fJusqua(new Date(v.expire_le)))}</div></div>
-        ${v.note ? `<div style="font-size:14px; line-height:1.45">${esc(v.note)}</div>` : ''}
-        ${lecteurVideo(v.lien)}
-      </div>`).join('')}</div>`
-      : `<div class="empty">${ICO.play}<div>Aucune vidéo dans cette rubrique pour le moment.</div></div>`}`;
+    ${cote === 'docs' ? `
+      <div class="faint" style="margin:-4px 0 12px">Les documents partagés par Marine : fiches d’exercices, conseils, programmes à imprimer.</div>
+      ${docs.length ? `<div class="card">${docs.map(v=>`
+        <a class="person" href="${esc(v.lien)}" target="_blank" rel="noopener" style="text-decoration:none; color:inherit">
+          <div class="avatar" style="font-size:18px">${icoDoc(v.lien)}</div>
+          <div class="grow"><div class="name">${esc(v.titre)}</div>
+            ${v.note ? `<div class="faint" style="line-height:1.4">${esc(v.note)}</div>` : '<div class="faint">Ouvrir le document</div>'}</div>
+          <span class="btn soft xs">Ouvrir</span>
+        </a>`).join('')}</div>`
+      : `<div class="empty">📄<div>Aucun document dans cette rubrique pour le moment.</div></div>`}`
+    : `
+      <div class="faint" style="margin:-4px 0 12px">${cat==='cours'
+        ? 'Tu as manqué un cours ? Suis-le en vidéo, quand tu veux.'
+        : 'Des exercices d’étirement et de mobilité à faire chez toi, à ton rythme.'}</div>
+      ${liste.length ? `<div class="stack">${liste.map(v=>`
+        <div class="card stack">
+          <div><div style="font-weight:700">${esc(v.titre)}</div>
+            <div class="faint">Disponible jusqu’au ${esc(fJusqua(new Date(v.expire_le)))}</div></div>
+          ${v.note ? `<div style="font-size:14px; line-height:1.45">${esc(v.note)}</div>` : ''}
+          ${lecteurVideo(v.lien)}
+        </div>`).join('')}</div>`
+        : `<div class="empty">${ICO.play}<div>Aucune vidéo dans cette rubrique pour le moment.</div></div>`}`}`;
 }
 
 function vueAdminVideos(){
@@ -1773,6 +1804,33 @@ function vueAdminVideos(){
         <textarea id="v-note" name="note" placeholder="Ex. : pensez à prendre un tapis et une petite balle"></textarea></div>
       <button class="btn full" type="submit" ${S.busy?'disabled':''}>Mettre la vidéo en ligne</button>
       <div class="faint" style="margin-top:10px">Mets ta vidéo sur YouTube en « Non répertoriée » (ou sur Google Drive en « Tous les utilisateurs disposant du lien »), puis colle le lien ici. Seules les adhérentes avec l’option vidéo la verront, jusqu’à la date choisie.</div>
+    </form>
+
+    ${['cours','mobilite'].map(k => `
+      <div class="section-title">📄 Documents · ${CAT_VIDEO[k]} · ${(S.docs||[]).filter(v=>catVideo(v)===k).length}</div>
+      <div class="card">${(S.docs||[]).filter(v=>catVideo(v)===k).length ? (S.docs||[]).filter(v=>catVideo(v)===k).map(v=>`
+        <div class="person">
+          <div class="avatar" style="font-size:16px">${icoDoc(v.lien)}</div>
+          <div class="grow"><div class="name">${esc(v.titre)}</div>
+            <div class="faint"><a href="${esc(v.lien)}" target="_blank" rel="noopener">Ouvrir</a> · ajouté le ${esc(fDate(new Date(v.cree_le)))}</div></div>
+          <button class="btn dangerish xs" data-act="suppr-doc" data-id="${v.id}">Retirer</button>
+        </div>`).join('') : '<div class="faint">Aucun document dans cette rubrique.</div>'}</div>`).join('')}
+
+    <form id="fdoc" class="card" style="margin-top:10px">
+      <div class="field"><label for="d-cat">Rubrique</label>
+        <select id="d-cat" name="categorie">
+          <option value="cours">🧘 Cours de renforcement musculaire</option>
+          <option value="mobilite">🤸 Étirements et mobilité</option>
+        </select></div>
+      <div class="field"><label for="d-titre">Titre du document</label><input id="d-titre" name="titre" placeholder="Ex. : Fiche d’exercices à la maison" required></div>
+      <div class="field"><label for="d-fichier">Fichier (PDF, image…)</label>
+        <input id="d-fichier" name="fichier" type="file" accept=".pdf,.doc,.docx,.xls,.xlsx,.csv,image/*"></div>
+      <div class="field"><label for="d-lien">…ou un lien</label>
+        <input id="d-lien" name="lien" type="url" inputmode="url" placeholder="https://…"></div>
+      <div class="field"><label for="d-note">Petit mot (facultatif)</label>
+        <textarea id="d-note" name="note" placeholder="Ex. : à faire 3 fois par semaine"></textarea></div>
+      <button class="btn full" type="submit" ${S.busy?'disabled':''}>Ajouter le document</button>
+      <div class="faint" style="margin-top:10px">Choisis un fichier depuis ton téléphone (il est hébergé ici, 20 Mo maximum) ou colle un lien. Les documents restent en ligne tant que tu ne les retires pas.</div>
     </form>
 
     <div class="section-title">Option vidéo · ${avec} adhérente${avec>1?'s':''}</div>
@@ -2162,13 +2220,22 @@ document.addEventListener('click', async (e) => {
 
   switch(act){
     case 'mode': S.authMode = el.dataset.mode; S.notice=null; render(); break;
-    case 'vue': if (el.dataset.vue === 'messages') { ouvrirMessages(); break; } S.vue = el.dataset.vue; S.notice=null; render(); if(S.vue==='compte') Promise.all([chargerMouvements(), chargerLots(), chargerDemandes()]).then(render); if(S.vue==='adherentes') chargerDemandes().then(render); if(S.vue==='mes') chargerHistorique().then(render); if(S.vue==='videos') chargerVideos().then(render); if(S.vue==='rappels') chargerRappels().then(render); break;
+    case 'vue': if (el.dataset.vue === 'messages') { ouvrirMessages(); break; } S.vue = el.dataset.vue; S.notice=null; render(); if(S.vue==='compte') Promise.all([chargerMouvements(), chargerLots(), chargerDemandes()]).then(render); if(S.vue==='adherentes') chargerDemandes().then(render); if(S.vue==='mes') chargerHistorique().then(render); if(S.vue==='videos') Promise.all([chargerVideos(), chargerDocs()]).then(render); if(S.vue==='rappels') chargerRappels().then(render); break;
     case 'fermer': case 'fermer-bg': S.sheet = null; render(); break;
     case 'deconnexion': await sb.auth.signOut(); S.session=null; S.profil=null; render(); break;
     case 'rafraichir': await agir(async()=>{ await chargerProfil(); await chargerCreneaux(); await chargerAnnonces(); }); break;
 
     case 'planning-vue': S.planningVue = el.dataset.v; render(); break;
     case 'cat-video': S.catVideo = el.dataset.v; render(); break;
+    case 'cote-biblio': S.coteBiblio = el.dataset.v; render(); break;
+    case 'suppr-doc': {
+      if (!confirm('Retirer ce document ?')) break;
+      await agir(async()=>{
+        const { error } = await sb.from('documents').delete().eq('id', el.dataset.id);
+        if (error) throw error;
+        await chargerDocs(); flash('ok','Document retiré.');
+      }); break;
+    }
     case 'cours-vue': {
       S.coursVue = el.dataset.v;
       if (S.coursVue === 'calendrier' && !S.jourSel){
@@ -2716,6 +2783,26 @@ document.addEventListener('submit', async (e) => {
     await chargerVideos(); flash('ok', `Vidéo en ligne jusqu’au ${fJusqua(fin)}.`);
   });
 
+  if (f.id === 'fdoc') return agir(async()=>{
+    const fichier = f.querySelector('#d-fichier')?.files?.[0] || null;
+    let lien = (d.lien || '').trim();
+    if (!fichier && !/^https?:\/\//i.test(lien)) throw new Error('Choisis un fichier ou colle un lien qui commence par https://');
+    if (fichier){
+      if (fichier.size > 20 * 1024 * 1024) throw new Error('Le fichier est trop lourd (20 Mo maximum).');
+      const propre = fichier.name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-zA-Z0-9._-]/g, '-');
+      const chemin = `${Date.now()}-${propre}`;
+      const up = await sb.storage.from('documents').upload(chemin, fichier, { contentType: fichier.type || 'application/octet-stream', upsert:true });
+      if (up.error) throw up.error;
+      lien = sb.storage.from('documents').getPublicUrl(chemin).data.publicUrl;
+    }
+    const { error } = await sb.from('documents').insert({
+      titre: (d.titre||'').trim() || 'Document', lien, note: (d.note||'').trim(),
+      categorie: d.categorie === 'mobilite' ? 'mobilite' : 'cours'
+    });
+    if (error) throw error;
+    await chargerDocs(); flash('ok','Document ajouté à la bibliothèque.');
+  });
+
   if (f.id === 'fannonce') return agir(async()=>{
     const texte = d.texte.trim();
     if (!texte) throw new Error('Écris le message de l’annonce.');
@@ -2759,7 +2846,7 @@ async function demarrer(session){
   if (S.profil.statut === 'active' || estAdmin()){
     await Promise.all([chargerCreneaux(), chargerAnnonces()]);
     if (estAdmin()) await chargerAdherentes(); else await Promise.all([chargerHistorique(), chargerLots()]);
-    if (estAdmin() || aBibliotheque()) await chargerVideos();
+    if (estAdmin() || aBibliotheque()) await Promise.all([chargerVideos(), chargerDocs()]);
     await chargerDemandes();
     try { await chargerMessages(); abonnerMessages(); } catch {}
     if (estAdmin()) { try { await chargerBugs(); } catch {} }
