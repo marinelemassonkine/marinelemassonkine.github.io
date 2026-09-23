@@ -358,11 +358,11 @@ const SUPABASE_KEY = 'sb_publishable_bS-fbBuW7ru_xDywDv_A2A_xHGRGUeN';
 const sb = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 /* ------------------------------------------------------------------ état */
-const VERSION = '2026-09-23-r59';
+const VERSION = '2026-09-23-r60';
 const aujourdhui = new Date();
 const S = {
   session:null, profil:null, params:null,
-  vue:'cours', creneaux:[], adherentes:[], mouvements:[], historique:[], annonces:[], videos:[], notifs:[], lots:[], demandes:[], rappels:[], msgGroupe:[], msgPrives:[], lectures:{}, conv:null,
+  vue:'cours', creneaux:[], adherentes:[], mouvements:[], historique:[], annonces:[], videos:[], notifs:[], lots:[], demandes:[], demandesF:[], rappels:[], msgGroupe:[], msgPrives:[], lectures:{}, conv:null,
   planningVue:'calendrier', coursVue:'liste',
   mois:new Date(aujourdhui.getFullYear(), aujourdhui.getMonth(), 1),
   jourSel:null,
@@ -389,6 +389,9 @@ const ERREURS = {
   creneau_annule:"Ce cours a été annulé.",
   creneau_passe:"Ce cours est déjà passé.",
   deja_inscrite:"Tu es déjà inscrite à ce cours.",
+  demande_deja_en_cours:"Tu as déjà une demande en attente. Marine te répondra bientôt.",
+  demande_introuvable:"Cette demande n’existe plus.",
+  formule_inconnue:"Formule inconnue.",
   formule_sans_cours:"Ta formule donne accès aux vidéos d’étirements et de mobilité, pas aux réservations de cours. Contacte Marine si tu souhaites changer.",
   credits_insuffisants:"Il ne te reste plus aucun crédit séance. Contacte Marine pour en rajouter.",
   credits_expires_avant_cours:"Tes séances auront expiré à la date de ce cours. Choisis un cours plus tôt ou contacte Marine.",
@@ -527,6 +530,56 @@ function formRappel(r){
 async function chargerDemandes(){
   const { data } = await sb.from('demandes_credits').select('*').order('cree_le', { ascending:false }).limit(estAdmin() ? 100 : 10);
   S.demandes = data || [];
+  try {
+    const r = await sb.from('demandes_formule').select('*').order('cree_le', { ascending:false }).limit(estAdmin() ? 100 : 10);
+    S.demandesF = r.data || [];
+  } catch { S.demandesF = S.demandesF || []; }
+}
+const CIBLE_DEMANDE = {
+  cours:    { cle:'les_deux', bouton:'🤸 Demander l’accès aux étirements et à la mobilité',
+              texte:'Envie de suivre aussi les vidéos d’étirements et de mobilité ? Envoie la demande à Marine, elle te répondra.' },
+  mobilite: { cle:'les_deux', bouton:'🧘 Demander l’accès aux cours de renforcement musculaire',
+              texte:'Envie de participer aussi aux cours de renforcement musculaire des muscles profonds ? Envoie la demande à Marine, elle te répondra.' }
+};
+function blocDemandeFormule(){
+  const f = maFormule();
+  const cible = CIBLE_DEMANDE[f];
+  if (!cible || estAdmin()) return '';
+  const enCours = (S.demandesF || []).find(d => d.statut === 'en_attente');
+  const derniere = (S.demandesF || []).find(d => d.statut !== 'en_attente');
+  return `<div class="section-title">Envie d’autre chose ?</div>
+    <div class="card stack">
+    ${enCours ? `
+      <div class="row-between"><div><div style="font-weight:700">Demande envoyée</div>
+        <div class="faint">Le ${esc(fDate(new Date(enCours.cree_le)))}</div></div>
+        <span class="badge wait">En attente</span></div>
+      <div class="faint">Marine va regarder ta demande, tu seras prévenue de sa réponse.</div>
+      <button class="btn ghost sm" data-act="demandeF-annuler" data-id="${enCours.id}">Annuler ma demande</button>`
+    : `
+      <div class="faint" style="line-height:1.45">${cible.texte}</div>
+      <div class="field" style="margin:0"><label for="df-msg">Petit mot (facultatif)</label>
+        <input id="df-msg" maxlength="200" placeholder="Ex. : j’aimerais bien essayer"></div>
+      <button class="btn full" data-act="demande-formule" data-f="${cible.cle}" ${S.busy?'disabled':''}>${cible.bouton}</button>
+      ${derniere && derniere.statut === 'refusee' ? '<div class="faint" style="font-size:12.5px">Ta dernière demande n’a pas été retenue. Tu peux en renvoyer une.</div>' : ''}`}
+    </div>`;
+}
+function blocDemandesFormuleAdmin(){
+  const att = (S.demandesF || []).filter(d => d.statut === 'en_attente');
+  if (!att.length) return '';
+  const nom = id => { const a = S.adherentes.find(x=>x.id===id); return a ? `${a.prenom} ${a.nom}` : 'Adhérente'; };
+  const lib = k => k === 'mobilite' ? '🤸 Étirements et mobilité'
+    : k === 'les_deux' ? '✨ Les deux (cours + étirements)' : '🧘 Cours de renforcement musculaire';
+  return `<div class="section-title">Demandes d’accès · ${att.length}</div>
+    <div class="faint" style="margin:-4px 0 10px">Des adhérentes aimeraient accéder à une autre formule. Si tu acceptes, leur accès change tout de suite et elles sont prévenues.</div>
+    <div class="card">${att.map(d => `
+      <div class="stack" style="padding:12px 0; border-bottom:1px solid var(--line)">
+        <div><div class="name">${esc(nom(d.adherente_id))}</div>
+          <div class="faint">${esc(lib(d.formule))} · demandé le ${esc(fDate(new Date(d.cree_le)))}</div></div>
+        ${d.message ? `<div style="font-size:14px">« ${esc(d.message)} »</div>` : ''}
+        <div class="row">
+          <button class="btn sm grow" data-act="demandeF-ok" data-id="${d.id}">Accepter</button>
+          <button class="btn dangerish sm" data-act="demandeF-non" data-id="${d.id}">Refuser</button></div>
+      </div>`).join('')}</div>`;
 }
 function blocDemandesAdmin(){
   const att = S.demandes.filter(d => d.statut === 'en_attente');
@@ -643,7 +696,7 @@ function telLien(n){
 }
 /* ---------------------------------------------------------- actualisation */
 function aTraiter(){
-  return S.adherentes.filter(a => a.statut === 'en_attente').length + S.demandes.filter(d => d.statut === 'en_attente').length;
+  return S.adherentes.filter(a => a.statut === 'en_attente').length + S.demandes.filter(d => d.statut === 'en_attente').length + (S.demandesF || []).filter(d => d.statut === 'en_attente').length;
 }
 function saisieEnCours(){
   if (S.sheet && S.sheet.type !== 'notifs') return true;
@@ -1413,6 +1466,7 @@ function vueCompte(){
     </div>
 
     ${blocDemandeCliente()}`}
+    ${blocDemandeFormule()}
 
     <div class="section-title">Notifications</div>
     ${cartePush()}
@@ -1541,6 +1595,7 @@ function vueAdminAdherentes(){
   return `
     <div class="field"><input id="q" placeholder="Rechercher une adhérente…" value="${esc(S.recherche)}" data-act="recherche"></div>
     ${blocDemandesAdmin()}
+    ${blocDemandesFormuleAdmin()}
     ${attente.length ? '<div class="faint" style="margin-bottom:-4px">Tu décides qui rejoint le cabinet, et avec quelle formule : <b>Renforcement musculaire</b> (calendrier, réservations, messagerie), <b>Mobilité</b> (bibliothèque d’étirements uniquement) ou <b>Les deux</b>. La formule se change ensuite dans « Gérer ».</div>' : ''}
     ${bloc('Demandes d’inscription', attente)}
     ${bloc('Adhérentes', actives)}
@@ -2392,6 +2447,31 @@ document.addEventListener('click', async (e) => {
     }
 
     case 'dm-nb': { const i = $('#dm-nb'); if (i) i.value = el.dataset.n; break; }
+
+    case 'demande-formule': await agir(async()=>{
+      const m = $('#df-msg')?.value || '';
+      await rpc('demander_formule', { p_formule: el.dataset.f, p_message: m });
+      await chargerDemandes(); flash('ok','Demande envoyée à Marine. Tu seras prévenue de sa réponse.');
+    }); break;
+    case 'demandeF-annuler': await agir(async()=>{
+      await rpc('annuler_demande_formule', { p_id: el.dataset.id });
+      await chargerDemandes(); flash('ok','Demande annulée.');
+    }); break;
+    case 'demandeF-ok': {
+      if (!confirm('Accepter cette demande ? Son accès change tout de suite et elle est prévenue.')) break;
+      await agir(async()=>{
+        await rpc('admin_traiter_formule', { p_id: el.dataset.id, p_accepter: true });
+        await Promise.all([chargerDemandes(), chargerAdherentes()]);
+        flash('ok','Accès accordé. L’adhérente est prévenue.');
+      }); break;
+    }
+    case 'demandeF-non': {
+      if (!confirm('Refuser cette demande ? L’adhérente sera prévenue.')) break;
+      await agir(async()=>{
+        await rpc('admin_traiter_formule', { p_id: el.dataset.id, p_accepter: false });
+        await chargerDemandes(); flash('ok','Demande refusée.');
+      }); break;
+    }
     case 'demande-annuler': await agir(async()=>{
       await rpc('annuler_demande', { p_id: el.dataset.id });
       await chargerDemandes(); flash('ok','Demande annulée.');
