@@ -358,7 +358,7 @@ const SUPABASE_KEY = 'sb_publishable_bS-fbBuW7ru_xDywDv_A2A_xHGRGUeN';
 const sb = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 /* ------------------------------------------------------------------ état */
-const VERSION = '2026-09-23-r58';
+const VERSION = '2026-09-23-r59';
 const aujourdhui = new Date();
 const S = {
   session:null, profil:null, params:null,
@@ -755,7 +755,7 @@ function nonLus(cle){
 function convsPrivees(){ return estAdmin() ? [...new Set(S.msgPrives.map(m => m.conv))] : [S.profil.id]; }
 function totalNonLus(){
   if (!S.profil) return 0;
-  return nonLus('groupe') + convsPrivees().reduce((n, c) => n + nonLus(c), 0);
+  return (estMobilite() ? 0 : nonLus('groupe')) + convsPrivees().reduce((n, c) => n + nonLus(c), 0);
 }
 async function marquerLu(cle){
   const t = new Date().toISOString();
@@ -867,12 +867,13 @@ function carteContact(){
 }
 function vueMessages(){
   if (!estAdmin()){
+    const sansGroupe = estMobilite();
     const contact = S.conv === 'contact';
-    const cle = contact ? 'contact' : (S.conv === S.profil.id ? S.profil.id : 'groupe');
+    const cle = contact ? 'contact' : (sansGroupe || S.conv === S.profil.id) ? S.profil.id : 'groupe';
     const nG = nonLus('groupe'), nP = nonLus(S.profil.id);
     return `<div class="seg-msg">
-        <button class="btn ${cle === 'groupe' ? '' : 'soft'} sm grow" data-act="conv" data-conv="groupe">👥 Groupe${nG && cle !== 'groupe' ? ` (${nG})` : ''}</button>
-        <button class="btn ${cle === S.profil.id ? '' : 'soft'} sm grow" data-act="conv" data-conv="${S.profil.id}">💬 Privé${nP && cle !== S.profil.id ? ` (${nP})` : ''}</button>
+        ${sansGroupe ? '' : `<button class="btn ${cle === 'groupe' ? '' : 'soft'} sm grow" data-act="conv" data-conv="groupe">👥 Groupe${nG && cle !== 'groupe' ? ` (${nG})` : ''}</button>`}
+        <button class="btn ${cle === S.profil.id && !contact ? '' : 'soft'} sm grow" data-act="conv" data-conv="${S.profil.id}">💬 ${sansGroupe ? 'Écrire à Marine' : 'Privé'}${nP && (contact || cle !== S.profil.id) ? ` (${nP})` : ''}</button>
         <button class="btn ${contact ? '' : 'soft'} sm grow" data-act="conv" data-conv="contact">📞 Appeler</button>
       </div>
       ${contact ? carteContact() : `<div class="faint" style="font-size:12.5px; margin:-4px 0 12px">${cle === 'groupe'
@@ -1005,7 +1006,7 @@ function logoCabinet(grand){
 function elementsMenu(admin){
   return admin
     ? [['planning','Planning',ICO.cal],['adherentes','Adhérentes',ICO.users],['messages','Messages',ICO.chat],['videos','Bibliothèque',ICO.play],['rappels','Rappels',ICO.bell],['reglages','Réglages',ICO.gear]]
-    : estMobilite() ? [['videos','Bibliothèque',ICO.play],['compte','Mon compte',ICO.user]]
+    : estMobilite() ? [['videos','Bibliothèque',ICO.play],['messages','Messages',ICO.chat],['compte','Mon compte',ICO.user]]
     : [['cours','Les cours',ICO.cal],['mes','Mes cours',ICO.check],['messages','Messages',ICO.chat],...(aBibliotheque()?[['videos','Bibliothèque',ICO.play]]:[]),['compte','Mon compte',ICO.user]];
 }
 function feuilleMenu(){
@@ -1044,7 +1045,7 @@ async function envoyerLogo(fichier){
 function barreOnglets(admin){
   const items = admin
     ? [['planning','Planning',ICO.cal],['adherentes','Adhérentes',ICO.users],['messages','Messages',ICO.chat],['videos','Bibliothèque',ICO.play],['rappels','Rappels',ICO.bell],['reglages','Réglages',ICO.gear]]
-    : estMobilite() ? [['videos','Bibliothèque',ICO.play],['compte','Mon compte',ICO.user]]
+    : estMobilite() ? [['videos','Bibliothèque',ICO.play],['messages','Messages',ICO.chat],['compte','Mon compte',ICO.user]]
     : [['cours','Les cours',ICO.cal],['mes','Mes cours',ICO.check],['messages','Messages',ICO.chat],...(aBibliotheque()?[['videos','Bibliothèque',ICO.play]]:[]),['compte','Mon compte',ICO.user]];
   const nMsg = totalNonLus();
   const nAdh = admin ? aTraiter() : 0;
@@ -1132,7 +1133,7 @@ const vueSuspendu = () => ecranSimple(
   'Ton accès aux réservations est suspendu. Contacte le cabinet pour le réactiver.', false);
 /* ---------------------------------------------------------- espace adhérente */
 function vueAdherente(){
-  if (estMobilite()) return (S.vue === 'compte') ? vueCompte() : vueVideos();
+  if (estMobilite()) return S.vue === 'compte' ? vueCompte() : S.vue === 'messages' ? vueMessages() : vueVideos();
   if (S.vue === 'mes')    return vueMesCours();
   if (S.vue === 'messages') return vueMessages();
   if (S.vue === 'videos' && aBibliotheque()) return vueVideos();
@@ -1402,7 +1403,7 @@ function vueCompte(){
     ${carteProfil(p, true)}
     ${estMobilite() ? `<div class="card stack" style="text-align:center; padding-block:20px">
       <div style="font-weight:700">🤸 Formule Étirements et mobilité</div>
-      <div class="faint" style="line-height:1.45">Tu as accès à la bibliothèque de vidéos d’étirements et de mobilité, à faire chez toi quand tu veux. Si tu souhaites aussi participer aux cours, parles-en à Marine.</div>
+      <div class="faint" style="line-height:1.45">Tu as accès à la bibliothèque de vidéos d’étirements et de mobilité, à faire chez toi quand tu veux, et tu peux écrire à Marine ou l’appeler depuis l’onglet Messages. Si tu souhaites aussi participer aux cours, parles-en à elle.</div>
     </div>` : `<div class="card stack" style="align-items:center; text-align:center; padding-block:22px">
       <div style="font-family:Fraunces,serif; font-size:46px; font-weight:600; line-height:1; color:var(--accent)">${p.credits}</div>
       <div class="muted" style="margin-top:-4px">séance${p.credits>1?'s':''} restante${p.credits>1?'s':''} sur ta carte</div>
