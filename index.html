@@ -358,7 +358,7 @@ const SUPABASE_KEY = 'sb_publishable_bS-fbBuW7ru_xDywDv_A2A_xHGRGUeN';
 const sb = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 /* ------------------------------------------------------------------ état */
-const VERSION = '2026-09-23-r65';
+const VERSION = '2026-09-25-r66';
 const aujourdhui = new Date();
 const S = {
   session:null, profil:null, params:null,
@@ -471,7 +471,20 @@ async function chargerRappels(){
 }
 const JOURS_C = ['dim','lun','mar','mer','jeu','ven','sam'];
 const JOURS_L = ['dimanche','lundi','mardi','mercredi','jeudi','vendredi','samedi'];
-const CIBLES = { toutes:'Toutes les adhérentes', inscrites_demain:'Les inscrites à un cours le lendemain', inscrites_jour:'Les inscrites à un cours le jour même', sans_resa:'Les adhérentes sans aucune réservation à venir' };
+const CIBLES = { toutes:'Toutes les adhérentes',
+  inscrites_demain:'Les inscrites à un cours le lendemain',
+  inscrites_jour:'Les inscrites à un cours le jour même',
+  non_inscrites_prochain:'Celles qui ne sont pas inscrites au prochain cours',
+  non_inscrites_7j:'Celles qui ne sont pas inscrites à un cours des 7 prochains jours',
+  sans_resa:'Les adhérentes sans aucune réservation à venir' };
+const AIDE_CIBLE = {
+  toutes:'Tout le monde reçoit la notification.',
+  inscrites_demain:'Envoyé seulement à celles qui ont une place réservée pour le lendemain.',
+  inscrites_jour:'Envoyé seulement à celles qui ont une place réservée pour le jour même.',
+  non_inscrites_prochain:'Le rappel part uniquement à celles qui n’ont pas réservé LE prochain cours, même si elles sont inscrites à un cours plus tard. Utilise {date} et {heure} pour citer ce cours.',
+  non_inscrites_7j:'Le rappel part à celles qui n’ont aucune place réservée sur les 7 prochains jours, même si elles ont déjà réservé un cours plus loin dans le mois.',
+  sans_resa:'Uniquement celles qui n’ont absolument aucune réservation à venir, même dans trois semaines.'
+};
 function resumeRappel(r){
   const h = String(r.heure||'').slice(0,5).replace(':','h');
   let q = r.repetition === 'quotidien' ? 'Tous les jours'
@@ -510,7 +523,9 @@ function formRappel(r){
       <div class="faint" style="margin-top:6px; font-size:12.5px; line-height:1.5">Mots magiques remplacés automatiquement :
         <b>{prenom}</b> · <b>{jour}</b> (demain / aujourd’hui) · <b>{heure}</b> (heure du cours) · <b>{date}</b> · <b>{seances}</b> (séances restantes) · <b>{cours_semaine}</b> (places de la semaine) · <b>{prochains_cours}</b></div></div>
     <div class="field" style="margin:0"><label for="rp-cible">Qui le reçoit</label>
-      <select id="rp-cible" name="cible">${Object.entries(CIBLES).map(([v,l])=>opt(v,l,r.cible)).join('')}</select></div>
+      <select id="rp-cible" name="cible" data-act-change="rp-cible">${Object.entries(CIBLES).map(([v,l])=>opt(v,l,r.cible)).join('')}</select>
+      <div id="rp-aide" class="faint" style="margin-top:6px; font-size:12.5px; line-height:1.5">${esc(AIDE_CIBLE[r.cible]||'')}</div>
+      <div class="faint" style="margin-top:6px; font-size:12.5px; line-height:1.5">Les adhérentes en formule « Étirements et mobilité » ne reçoivent jamais les rappels liés aux cours.</div></div>
     <div class="fields-2">
       <div class="field" style="margin:0"><label for="rp-heure">Heure</label>
         <input id="rp-heure" name="heure" type="time" value="${String(r.heure||'18:00').slice(0,5)}" required></div>
@@ -2677,6 +2692,11 @@ document.addEventListener('change', async (e) => {
     await chargerProfil(); if (estAdmin()) await chargerAdherentes();
     flash('ok','Photo enregistrée.');
   });
+});
+document.addEventListener('change', (e) => {
+  if (e.target.id !== 'rp-cible') return;
+  const a = document.getElementById('rp-aide');
+  if (a) a.textContent = AIDE_CIBLE[e.target.value] || '';
 });
 document.addEventListener('change', (e) => {
   if (e.target.id !== 'rp-rep') return;
