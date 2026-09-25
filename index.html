@@ -282,7 +282,14 @@ textarea{resize:vertical; min-height:64px}
 @media (max-width:340px){ .fields-2{grid-template-columns:1fr} }
 .fields-2{min-width:0} .fields-2 .field{min-width:0}
 .fields-2 input, .fields-2 select{width:100%; min-width:0}
-input[type=date]{min-width:0; max-width:100%; box-sizing:border-box; -webkit-appearance:none; appearance:none}
+input[type=date], input[type=time], input[type=datetime-local]{min-width:0; max-width:100%; width:100%; box-sizing:border-box; -webkit-appearance:none; appearance:none; text-align:left}
+.jours-grille{display:grid; grid-template-columns:repeat(4, minmax(0,1fr)); gap:8px}
+.jour-chip{display:flex; align-items:center; justify-content:center; gap:6px; min-width:0; padding:10px 4px;
+  border:1px solid var(--line); border-radius:var(--radius-sm); background:var(--surface-2);
+  font-size:13px; font-weight:600; cursor:pointer; user-select:none}
+.jour-chip input{width:16px; height:16px; flex:none; margin:0; accent-color:var(--accent)}
+.jour-chip span{overflow:hidden; text-overflow:ellipsis}
+.jour-chip:has(input:checked){border-color:var(--accent); background:var(--rose-soft); color:var(--rose)}
 input, select, textarea{box-sizing:border-box; max-width:100%}
 .fields-2 .field label{white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
 .ligne{display:flex; gap:10px; align-items:flex-start; padding:12px 0; border-bottom:1px solid var(--line)}
@@ -358,7 +365,7 @@ const SUPABASE_KEY = 'sb_publishable_bS-fbBuW7ru_xDywDv_A2A_xHGRGUeN';
 const sb = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 /* ------------------------------------------------------------------ état */
-const VERSION = '2026-09-25-r66';
+const VERSION = '2026-09-25-r67';
 const aujourdhui = new Date();
 const S = {
   session:null, profil:null, params:null,
@@ -526,16 +533,14 @@ function formRappel(r){
       <select id="rp-cible" name="cible" data-act-change="rp-cible">${Object.entries(CIBLES).map(([v,l])=>opt(v,l,r.cible)).join('')}</select>
       <div id="rp-aide" class="faint" style="margin-top:6px; font-size:12.5px; line-height:1.5">${esc(AIDE_CIBLE[r.cible]||'')}</div>
       <div class="faint" style="margin-top:6px; font-size:12.5px; line-height:1.5">Les adhérentes en formule « Étirements et mobilité » ne reçoivent jamais les rappels liés aux cours.</div></div>
-    <div class="fields-2">
-      <div class="field" style="margin:0"><label for="rp-heure">Heure</label>
-        <input id="rp-heure" name="heure" type="time" value="${String(r.heure||'18:00').slice(0,5)}" required></div>
-      <div class="field" style="margin:0"><label for="rp-rep">Répétition</label>
-        <select id="rp-rep" name="repetition" data-act-change="rp-rep">
-          ${opt('une_fois','Une seule fois',r.repetition)}${opt('quotidien','Tous les jours',r.repetition)}${opt('hebdo','Certains jours de la semaine',r.repetition)}${opt('mensuel','Une fois par mois',r.repetition)}
-        </select></div>
-    </div>
-    <div data-rep="hebdo" ${r.repetition==='hebdo'?'':'hidden'}><div class="faint" style="margin-bottom:6px">Quels jours ?</div>
-      <div class="row" style="flex-wrap:wrap; gap:6px">${[1,2,3,4,5,6,0].map(j=>`<label class="btn soft xs" style="gap:6px"><input type="checkbox" name="j${j}" ${(r.jours||[]).includes(j)?'checked':''}> ${JOURS_C[j]}</label>`).join('')}</div></div>
+    <div class="field" style="margin:0"><label for="rp-rep">Répétition</label>
+      <select id="rp-rep" name="repetition" data-act-change="rp-rep">
+        ${opt('une_fois','Une seule fois',r.repetition)}${opt('quotidien','Tous les jours',r.repetition)}${opt('hebdo','Certains jours de la semaine',r.repetition)}${opt('mensuel','Une fois par mois',r.repetition)}
+      </select></div>
+    <div class="field" style="margin:0"><label for="rp-heure">Heure d’envoi</label>
+      <input id="rp-heure" name="heure" type="time" value="${String(r.heure||'18:00').slice(0,5)}" required></div>
+    <div data-rep="hebdo" ${r.repetition==='hebdo'?'':'hidden'}><div class="faint" style="margin-bottom:8px">Quels jours ?</div>
+      <div class="jours-grille">${[1,2,3,4,5,6,0].map(j=>`<label class="jour-chip"><input type="checkbox" name="j${j}" ${(r.jours||[]).includes(j)?'checked':''}><span>${JOURS_C[j]}</span></label>`).join('')}</div></div>
     <div data-rep="mensuel" class="field" style="margin:0" ${r.repetition==='mensuel'?'':'hidden'}><label for="rp-jm">Jour du mois</label>
       <input id="rp-jm" name="jour_mois" type="number" min="1" max="28" value="${r.jour_mois||1}"></div>
     <div data-rep="une_fois" class="field" style="margin:0" ${r.repetition==='une_fois'?'':'hidden'}><label for="rp-date">Date</label>
