@@ -365,7 +365,7 @@ const SUPABASE_KEY = 'sb_publishable_bS-fbBuW7ru_xDywDv_A2A_xHGRGUeN';
 const sb = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 /* ------------------------------------------------------------------ état */
-const VERSION = '2026-09-25-r67';
+const VERSION = '2026-09-28-r68';
 const aujourdhui = new Date();
 const S = {
   session:null, profil:null, params:null,
@@ -1197,7 +1197,7 @@ function vueAuth(){
     <div class="auth-head">
       ${(S.params && S.params.logo_url) ? logoCabinet(true) : `<div class="logo grand">${ICO.lotus}</div>`}
       <h1>${oubli ? 'Mot de passe oublié' : inscription ? 'Créer mon compte' : 'Bienvenue'}</h1>
-      <p>${oubli ? 'On t’envoie un lien pour choisir un nouveau mot de passe.'
+      <p>${oubli ? 'Entre ton email : tu reçois un lien pour choisir toi-même un nouveau mot de passe. Si rien n’arrive (pense aux spams), demande à Marine de t’en créer un provisoire.'
           : inscription ? 'Quelques informations et ta praticienne validera ton inscription.'
           : 'Renforcement musculaire des muscles profonds'}</p>
       ${(oubli||inscription) ? '' : `<p class="auth-sous" style="font-size:13px;opacity:.75;margin-top:6px;line-height:1.45">Avec Marine Le Masson, kiné spécialisée en rééducation pelvi-périnéale</p>`}
@@ -1540,6 +1540,16 @@ function vueCompte(){
 
     <div class="section-title">Notifications</div>
     ${cartePush()}
+
+    <div class="section-title">Mon mot de passe</div>
+    <form id="fmdp" class="card stack">
+      <div class="faint" style="line-height:1.45">Tu peux changer ton mot de passe quand tu veux, sans passer par Marine.</div>
+      <div class="field" style="margin:0"><label for="mdp-1">Nouveau mot de passe</label>
+        <input id="mdp-1" name="mdp" type="password" autocomplete="new-password" minlength="8" placeholder="8 caractères minimum" required></div>
+      <div class="field" style="margin:0"><label for="mdp-2">Confirme le nouveau mot de passe</label>
+        <input id="mdp-2" name="mdp2" type="password" autocomplete="new-password" minlength="8" required></div>
+      <button class="btn full" type="submit" ${S.busy?'disabled':''}>Enregistrer mon nouveau mot de passe</button>
+    </form>
 
     <div class="section-title">Mes informations</div>
     <form id="fprofil" class="card">
@@ -1988,6 +1998,15 @@ function vueAdminReglages(){
     <div style="margin-top:22px"><button class="btn ghost full" data-act="deconnexion">Se déconnecter</button></div>`;
 }
 /* ---------------------------------------------------------- feuilles (modales) */
+function feuilleMdp(){
+  const m = S.sheet.mdp || '';
+  return `<div class="card stack" style="text-align:center">
+      <div class="faint" style="line-height:1.45">Voici le mot de passe provisoire de <b>${esc(S.sheet.nom||'')}</b>. Transmets-le lui (SMS, message, de vive voix) : son ancien mot de passe ne marche plus.</div>
+      <div class="share" style="font-size:22px; letter-spacing:.06em; font-weight:700; text-align:center">${esc(m)}</div>
+      <button class="btn full" data-act="copier" data-lien="${esc(m)}">Copier le mot de passe</button>
+      <div class="faint" style="line-height:1.45; font-size:12.5px">Elle se connecte avec son email et ce mot de passe, puis le change dans « Mon compte » → « Mon mot de passe ».</div>
+    </div>`;
+}
 function feuille(){
   let titre = '', corps = '';
   if (S.sheet.type === 'nouveau'){ titre = 'Nouveau cours'; corps = formNouveauCreneau(); }
@@ -2005,6 +2024,7 @@ function feuille(){
     titre = c ? `${fDay(new Date(c.debut))} · ${fTime(new Date(c.debut))}` : 'Cours'; corps = detailCreneau(c); }
   if (S.sheet.type === 'adherente'){ const a = S.adherentes.find(x=>x.id===S.sheet.id);
     titre = a ? `${a.prenom} ${a.nom}` : 'Adhérente'; corps = detailAdherente(a); }
+  if (S.sheet.type === 'mdp'){ titre = 'Mot de passe provisoire'; corps = feuilleMdp(); }
   return `<div class="sheet-bg" data-act="fermer-bg"><div class="sheet">
     <div class="sheet-head"><h2>${esc(titre)}</h2><button class="x" data-act="fermer" aria-label="Fermer">✕</button></div>
     ${S.notice ? `<div class="notice ${S.notice.type}">${esc(S.notice.texte)}</div>` : ''}
@@ -2258,7 +2278,9 @@ function detailAdherente(a){
     </div>
     ${blocHistorique()}
     <div style="margin-top:18px" class="stack">
-      ${a.role !== 'admin' ? `<button class="btn soft full" data-act="ecrire-a" data-id="${a.id}">💬 Envoyer un message privé</button>` : ''}
+      ${a.role !== 'admin' ? `<button class="btn soft full" data-act="ecrire-a" data-id="${a.id}">💬 Envoyer un message privé</button>
+        <button class="btn soft full" data-act="mdp-provisoire" data-id="${a.id}" data-nom="${esc(a.prenom)}">🔑 Lui créer un mot de passe provisoire</button>
+        <div class="aide" style="text-align:center">À utiliser si elle n’arrive pas à se connecter et ne reçoit pas l’email « mot de passe oublié ». Tu lui transmets le mot de passe, elle le change ensuite dans « Mon compte ».</div>` : ''}
       ${a.statut==='active'
         ? `<button class="btn ghost full" data-act="statut" data-id="${a.id}" data-val="inactive">Mettre le compte en pause</button>`
         : `<button class="btn full" data-act="statut" data-id="${a.id}" data-val="active">Réactiver le compte</button>`}
@@ -2494,6 +2516,23 @@ document.addEventListener('click', async (e) => {
       if (v==='rappels') chargerRappels().then(render);
       window.scrollTo(0,0); break; }
     case 'menu-notifs': S.sheet = { type:'notifs' }; render(); sb.from('notifications').update({lu:true}).eq('lu',false).then(()=>chargerNotifs().then(render)); break;
+    case 'mdp-provisoire': {
+      const nom = el.dataset.nom || 'cette adhérente';
+      if (!confirm(`Créer un mot de passe provisoire pour ${nom} ? Son ancien mot de passe ne marchera plus.`)) break;
+      await agir(async()=>{
+        const { data: { session } } = await sb.auth.getSession();
+        const r = await fetch(`${SUPABASE_URL}/functions/v1/motdepasse`, {
+          method:'POST',
+          headers:{ 'Content-Type':'application/json', apikey: SUPABASE_KEY, Authorization: `Bearer ${session.access_token}` },
+          body: JSON.stringify({ adherente_id: el.dataset.id })
+        });
+        const j = await r.json();
+        if (!r.ok || j.erreur) throw new Error(j.erreur || 'Impossible de créer le mot de passe.');
+        S.sheet = { type:'mdp', nom: j.prenom || nom, mdp: j.motdepasse };
+        render();
+      }); break;
+    }
+
     case 'suppr-adherente': {
       const nom = el.dataset.nom || 'cette adhérente';
       if (!confirm(`Supprimer définitivement ${nom} ?\n\nSes séances, son historique et ses messages seront effacés. C’est irréversible.`)) break;
@@ -2789,6 +2828,15 @@ document.addEventListener('submit', async (e) => {
     }
     const { error } = await sb.auth.signInWithPassword({ email:d.email.trim(), password:d.mdp });
     if (error) throw error;
+  });
+
+  if (f.id === 'fmdp') return agir(async()=>{
+    const m = String(d.mdp || '');
+    if (m.length < 8) throw new Error('Le mot de passe doit faire au moins 8 caractères.');
+    if (m !== String(d.mdp2 || '')) throw new Error('Les deux mots de passe ne sont pas identiques.');
+    const { error } = await sb.auth.updateUser({ password: m });
+    if (error) throw error;
+    f.reset(); flash('ok','Mot de passe modifié. Garde-le bien 🙂');
   });
 
   if (f.id === 'fprofil') return agir(async()=>{
