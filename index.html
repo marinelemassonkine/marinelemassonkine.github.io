@@ -365,7 +365,7 @@ const SUPABASE_KEY = 'sb_publishable_bS-fbBuW7ru_xDywDv_A2A_xHGRGUeN';
 const sb = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 /* ------------------------------------------------------------------ état */
-const VERSION = '2026-09-28-r68';
+const VERSION = '2026-09-30-r69';
 const aujourdhui = new Date();
 const S = {
   session:null, profil:null, params:null,
@@ -1998,6 +1998,36 @@ function vueAdminReglages(){
     <div style="margin-top:22px"><button class="btn ghost full" data-act="deconnexion">Se déconnecter</button></div>`;
 }
 /* ---------------------------------------------------------- feuilles (modales) */
+function feuilleConfirmer(c){
+  if (!c) return '<div class="faint">Ce cours n’est plus disponible.</div>';
+  const d = new Date(c.debut);
+  const fin = new Date(d.getTime() + c.duree_min*60000);
+  const libres = Math.max(0, c.capacite - c.places_prises);
+  const complet = libres < 1;
+  const h = S.params.delai_annulation_h;
+  const apres = Math.max(0, (S.profil.credits || 0) - 1);
+  const limite = new Date(d.getTime() - h*3600000);
+  return `<div class="card stack" style="text-align:center">
+      <div style="font-family:Fraunces,serif; font-size:20px; line-height:1.3">${complet
+        ? 'Te mettre en liste d’attente pour ce cours ?'
+        : 'Tu veux réserver ce cours ?'}</div>
+      <div class="share" style="text-align:center; font-size:15px; line-height:1.5">
+        <b style="text-transform:capitalize">${esc(fDay(d))}</b><br>
+        ${fTime(d)} – ${fTime(fin)}${c.lieu ? ` · ${esc(c.lieu)}` : ''}<br>
+        <span class="faint">${esc(c.titre)}</span>
+      </div>
+      ${complet
+        ? `<div class="faint" style="line-height:1.5">Le cours est complet. Tu seras inscrite automatiquement — et prévenue — si une place se libère. Aucune séance n’est décomptée pour l’instant.</div>`
+        : `<div class="faint" style="line-height:1.5">1 séance sera décomptée : il t’en restera <b>${apres}</b>.</div>`}
+      ${complet ? '' : `<div class="notice info" style="text-align:left; margin:0; line-height:1.5">
+        <b>PS :</b> si jamais tu as un empêchement, pense à annuler au moins <b>${h} h avant</b> le cours
+        (soit avant le <b>${esc(fCourt(limite))} à ${fTime(limite)}</b>) : ta séance t’est rendue et Marine a le temps de proposer ta place à une autre adhérente. Merci 💛</div>`}
+      <div class="row" style="width:100%">
+        <button class="btn grow" data-act="reserver-ok" data-id="${c.id}" ${S.busy?'disabled':''}>${complet ? 'Oui, en liste d’attente' : 'Oui, je réserve'}</button>
+        <button class="btn soft grow" data-act="fermer">Non, pas maintenant</button>
+      </div>
+    </div>`;
+}
 function feuilleMdp(){
   const m = S.sheet.mdp || '';
   return `<div class="card stack" style="text-align:center">
@@ -2025,6 +2055,8 @@ function feuille(){
   if (S.sheet.type === 'adherente'){ const a = S.adherentes.find(x=>x.id===S.sheet.id);
     titre = a ? `${a.prenom} ${a.nom}` : 'Adhérente'; corps = detailAdherente(a); }
   if (S.sheet.type === 'mdp'){ titre = 'Mot de passe provisoire'; corps = feuilleMdp(); }
+  if (S.sheet.type === 'confirmer'){ const c = S.creneaux.find(x=>x.id===S.sheet.id);
+    titre = 'Confirmer la réservation'; corps = feuilleConfirmer(c); }
   return `<div class="sheet-bg" data-act="fermer-bg"><div class="sheet">
     <div class="sheet-head"><h2>${esc(titre)}</h2><button class="x" data-act="fermer" aria-label="Fermer">✕</button></div>
     ${S.notice ? `<div class="notice ${S.notice.type}">${esc(S.notice.texte)}</div>` : ''}
@@ -2347,6 +2379,9 @@ document.addEventListener('click', async (e) => {
     }); break;
 
     case 'reserver': if (S.profil.credits < 1) { flash('err','Il ne te reste plus aucun crédit séance. Contacte Marine pour en rajouter.'); break; }
+      S.sheet = { type:'confirmer', id: el.dataset.id }; render(); break;
+
+    case 'reserver-ok':
     await agir(async()=>{
       const r = await rpc('reserver', { p_creneau: el.dataset.id });
       await Promise.all([chargerProfil(), chargerCreneaux(), chargerLots()]);
