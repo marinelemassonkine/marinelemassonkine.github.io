@@ -365,7 +365,7 @@ const SUPABASE_KEY = 'sb_publishable_bS-fbBuW7ru_xDywDv_A2A_xHGRGUeN';
 const sb = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 /* ------------------------------------------------------------------ état */
-const VERSION = '2026-10-21-r70';
+const VERSION = '2026-10-21-r71';
 const aujourdhui = new Date();
 const S = {
   session:null, profil:null, params:null,
@@ -1870,7 +1870,8 @@ function vueAdminVideos(){
           <option value="jamais">♾️ Elle reste en ligne jusqu’à ce que je la retire</option>
         </select></div>
       <div class="field" data-vfin><label for="v-fin">S’efface automatiquement le</label>
-        <input id="v-fin" name="expire" type="datetime-local" value="${valeurLocale(prochainDimanche20h())}"></div>
+        <input id="v-fin" name="expire" type="datetime-local" min="${valeurLocale(new Date())}">
+        <div class="faint" style="margin-top:6px; font-size:12.5px">Choisis la date et l’heure que tu veux pour cette vidéo-là.</div></div>
       <div class="field"><label for="v-note">Petit mot (facultatif)</label>
         <textarea id="v-note" name="note" placeholder="Ex. : pensez à prendre un tapis et une petite balle"></textarea></div>
       <button class="btn full" type="submit" ${S.busy?'disabled':''}>Mettre la vidéo en ligne</button>
