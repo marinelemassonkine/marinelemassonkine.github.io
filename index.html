@@ -365,7 +365,7 @@ const SUPABASE_KEY = 'sb_publishable_bS-fbBuW7ru_xDywDv_A2A_xHGRGUeN';
 const sb = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 /* ------------------------------------------------------------------ état */
-const VERSION = '2026-10-21-r71';
+const VERSION = '2026-10-21-r72';
 const aujourdhui = new Date();
 const S = {
   session:null, profil:null, params:null,
@@ -1874,6 +1874,12 @@ function vueAdminVideos(){
         <div class="faint" style="margin-top:6px; font-size:12.5px">Choisis la date et l’heure que tu veux pour cette vidéo-là.</div></div>
       <div class="field"><label for="v-note">Petit mot (facultatif)</label>
         <textarea id="v-note" name="note" placeholder="Ex. : pensez à prendre un tapis et une petite balle"></textarea></div>
+      <label class="jour-chip" style="justify-content:flex-start; padding:12px; margin-bottom:10px">
+        <input type="checkbox" id="v-prev" name="prevenir" checked data-act-change="v-prev">
+        <span style="text-align:left">🔔 Prévenir les adhérentes sur leur téléphone</span></label>
+      <div class="field" data-vmsg><label for="v-msg">Message de la notification (facultatif)</label>
+        <textarea id="v-msg" name="message" rows="3" maxlength="300" placeholder="Hey {prenom} ! Je viens de poster « {titre} », dispo sans limite 💛"></textarea>
+        <div class="faint" style="margin-top:6px; font-size:12.5px; line-height:1.45">Laisse vide et le message par défaut partira : « Marine vient d’ajouter « … » dans la bibliothèque, disponible jusqu’au … ». <b>{prenom}</b> et <b>{titre}</b> sont remplacés automatiquement.</div></div>
       <button class="btn full" type="submit" ${S.busy?'disabled':''}>Mettre la vidéo en ligne</button>
       <div class="faint" style="margin-top:10px">Mets ta vidéo sur YouTube en « Non répertoriée » (ou sur Google Drive en « Tous les utilisateurs disposant du lien »), puis colle le lien ici. Seules les adhérentes qui ont accès à cette rubrique la verront. Tu peux la retirer à la main à tout moment, même si tu n’as pas mis de date.</div>
     </form>
@@ -2779,6 +2785,11 @@ document.addEventListener('change', async (e) => {
   });
 });
 document.addEventListener('change', (e) => {
+  if (e.target.id !== 'v-prev') return;
+  const champ = document.querySelector('[data-vmsg]');
+  if (champ) champ.hidden = !e.target.checked;
+});
+document.addEventListener('change', (e) => {
   if (e.target.id !== 'v-dure') return;
   const champ = document.querySelector('[data-vfin]');
   const inp = document.getElementById('v-fin');
@@ -2939,14 +2950,25 @@ document.addEventListener('submit', async (e) => {
       fin = new Date(d.expire);
       if (!(fin > new Date())) throw new Error('La date d’effacement doit être dans le futur.');
     }
-    const { error } = await sb.from('videos').insert({
+    const { data: nouvelle, error } = await sb.from('videos').insert({
       titre: d.titre.trim() || 'Cours du lundi soir', lien, note: (d.note||'').trim(),
       expire_le: fin ? fin.toISOString() : null,
       categorie: d.categorie === 'mobilite' ? 'mobilite' : 'cours'
-    });
+    }).select('id').single();
     if (error) throw error;
+    let envoyes = null;
+    if (d.prevenir && nouvelle && nouvelle.id){
+      try {
+        const r = await rpc('admin_notifier_video', { p_video: nouvelle.id, p_message: (d.message||'').trim() || null });
+        envoyes = r && r.envoyes;
+      } catch { envoyes = -1; }
+    }
     await chargerVideos();
-    flash('ok', fin ? `Vidéo en ligne jusqu’au ${fJusqua(fin)}.` : 'Vidéo en ligne. Elle y restera jusqu’à ce que tu la retires.');
+    const base = fin ? `Vidéo en ligne jusqu’au ${fJusqua(fin)}.` : 'Vidéo en ligne. Elle y restera jusqu’à ce que tu la retires.';
+    flash('ok', envoyes == null ? base
+      : envoyes === -1 ? base + ' (la notification n’a pas pu partir)'
+      : envoyes === 0 ? base + ' Aucune adhérente à prévenir pour cette rubrique.'
+      : `${base} ${envoyes} adhérente${envoyes>1?'s':''} prévenue${envoyes>1?'s':''}.`);
   });
 
   if (f.id === 'fdoc') return agir(async()=>{
