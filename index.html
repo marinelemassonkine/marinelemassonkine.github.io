@@ -365,7 +365,7 @@ const SUPABASE_KEY = 'sb_publishable_bS-fbBuW7ru_xDywDv_A2A_xHGRGUeN';
 const sb = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 /* ------------------------------------------------------------------ état */
-const VERSION = '2026-10-21-r72';
+const VERSION = '2026-10-21-r73';
 const aujourdhui = new Date();
 const S = {
   session:null, profil:null, params:null,
@@ -1852,7 +1852,11 @@ function vueAdminVideos(){
           <div class="avatar" style="font-size:13px">▶</div>
           <div class="grow"><div class="name">${esc(v.titre)}</div>
             <div class="faint">${v.expire_le ? `S’efface le ${esc(fJusqua(new Date(v.expire_le)))}` : 'Reste en ligne (pas d’effacement)'}</div></div>
-          <button class="btn dangerish xs" data-act="suppr-video" data-id="${v.id}">Retirer</button>
+          <div class="stack" style="gap:5px; flex:none">
+            <button class="btn soft xs" data-act="media-edit" data-type="video" data-id="${v.id}">✏️ Modifier</button>
+            <button class="btn soft xs" data-act="media-alerte" data-type="video" data-id="${v.id}">🔔 Prévenir</button>
+            <button class="btn dangerish xs" data-act="suppr-video" data-id="${v.id}">Retirer</button>
+          </div>
         </div>`).join('') : '<div class="faint">Aucune vidéo dans cette rubrique.</div>'}</div>`).join('')}
 
     <form id="fvideo" class="card" style="margin-top:10px">
@@ -1891,7 +1895,11 @@ function vueAdminVideos(){
           <div class="avatar" style="font-size:16px">${icoDoc(v.lien)}</div>
           <div class="grow"><div class="name">${esc(v.titre)}</div>
             <div class="faint"><a href="${esc(v.lien)}" target="_blank" rel="noopener">Ouvrir</a> · ajouté le ${esc(fDate(new Date(v.cree_le)))}</div></div>
-          <button class="btn dangerish xs" data-act="suppr-doc" data-id="${v.id}">Retirer</button>
+          <div class="stack" style="gap:5px; flex:none">
+            <button class="btn soft xs" data-act="media-edit" data-type="doc" data-id="${v.id}">✏️ Modifier</button>
+            <button class="btn soft xs" data-act="media-alerte" data-type="doc" data-id="${v.id}">🔔 Prévenir</button>
+            <button class="btn dangerish xs" data-act="suppr-doc" data-id="${v.id}">Retirer</button>
+          </div>
         </div>`).join('') : '<div class="faint">Aucun document dans cette rubrique.</div>'}</div>`).join('')}
 
     <form id="fdoc" class="card" style="margin-top:10px">
@@ -2040,6 +2048,52 @@ function feuilleConfirmer(c){
       </div>
     </div>`;
 }
+function mediaCourant(){
+  const s = S.sheet || {};
+  return (s.mtype === 'doc' ? (S.docs||[]) : (S.videos||[])).find(x => x.id === s.id);
+}
+function feuilleMediaEdit(){
+  const v = mediaCourant();
+  if (!v) return '<div class="faint">Ce contenu n’est plus en ligne.</div>';
+  const doc = S.sheet.mtype === 'doc';
+  const opt = (k,l) => `<option value="${k}" ${catVideo(v)===k?'selected':''}>${l}</option>`;
+  const sansFin = !v.expire_le;
+  return `<form id="fmedia" class="stack" data-id="${v.id}" data-type="${doc?'doc':'video'}">
+    <div class="field" style="margin:0"><label for="e-cat">Rubrique</label>
+      <select id="e-cat" name="categorie">
+        ${opt('cours','🧘 Cours de renforcement musculaire')}${opt('mobilite','🤸 Étirements et mobilité')}
+      </select></div>
+    <div class="field" style="margin:0"><label for="e-titre">Titre</label>
+      <input id="e-titre" name="titre" value="${esc(v.titre)}" required></div>
+    <div class="field" style="margin:0"><label for="e-lien">${doc ? 'Lien du document' : 'Lien de la vidéo'}</label>
+      <input id="e-lien" name="lien" type="url" inputmode="url" value="${esc(v.lien)}" required></div>
+    ${doc ? '' : `
+    <div class="field" style="margin:0"><label for="e-dure">Combien de temps elle reste en ligne</label>
+      <select id="e-dure" name="duree" data-act-change="e-dure">
+        <option value="date" ${sansFin?'':'selected'}>⏳ Elle s’efface à une date précise</option>
+        <option value="jamais" ${sansFin?'selected':''}>♾️ Elle reste en ligne jusqu’à ce que je la retire</option>
+      </select></div>
+    <div class="field" style="margin:0" data-efin ${sansFin?'hidden':''}><label for="e-fin">S’efface automatiquement le</label>
+      <input id="e-fin" name="expire" type="datetime-local" value="${v.expire_le ? valeurLocale(new Date(v.expire_le)) : ''}"></div>`}
+    <div class="field" style="margin:0"><label for="e-note">Petit mot (facultatif)</label>
+      <textarea id="e-note" name="note" rows="3">${esc(v.note||'')}</textarea></div>
+    <button class="btn full" type="submit" ${S.busy?'disabled':''}>Enregistrer les modifications</button>
+    <button type="button" class="btn soft full" data-act="media-alerte" data-type="${doc?'doc':'video'}" data-id="${v.id}">🔔 Prévenir les adhérentes</button>
+  </form>`;
+}
+function feuilleMediaAlerte(){
+  const v = mediaCourant();
+  if (!v) return '<div class="faint">Ce contenu n’est plus en ligne.</div>';
+  const doc = S.sheet.mtype === 'doc';
+  return `<form id="falerte" class="stack" data-id="${v.id}" data-type="${doc?'doc':'video'}">
+    <div class="faint" style="line-height:1.45">Une notification va partir sur le téléphone des adhérentes qui ont accès à la rubrique <b>${esc(CAT_VIDEO[catVideo(v)])}</b>.</div>
+    <div class="share" style="text-align:center">${esc(v.titre)}</div>
+    <div class="field" style="margin:0"><label for="al-msg">Message (facultatif)</label>
+      <textarea id="al-msg" name="message" rows="3" maxlength="300" placeholder="Hey {prenom} ! ${doc ? 'J’ai ajouté' : 'Je viens de poster'} « {titre} » 💛"></textarea>
+      <div class="faint" style="margin-top:6px; font-size:12.5px; line-height:1.45">Vide = message par défaut. <b>{prenom}</b> et <b>{titre}</b> sont remplacés automatiquement.</div></div>
+    <button class="btn full" type="submit" ${S.busy?'disabled':''}>Envoyer la notification</button>
+  </form>`;
+}
 function feuilleMdp(){
   const m = S.sheet.mdp || '';
   return `<div class="card stack" style="text-align:center">
@@ -2067,6 +2121,8 @@ function feuille(){
   if (S.sheet.type === 'adherente'){ const a = S.adherentes.find(x=>x.id===S.sheet.id);
     titre = a ? `${a.prenom} ${a.nom}` : 'Adhérente'; corps = detailAdherente(a); }
   if (S.sheet.type === 'mdp'){ titre = 'Mot de passe provisoire'; corps = feuilleMdp(); }
+  if (S.sheet.type === 'media-edit'){ titre = S.sheet.mtype === 'doc' ? 'Modifier le document' : 'Modifier la vidéo'; corps = feuilleMediaEdit(); }
+  if (S.sheet.type === 'media-alerte'){ titre = 'Prévenir les adhérentes'; corps = feuilleMediaAlerte(); }
   if (S.sheet.type === 'confirmer'){ const c = S.creneaux.find(x=>x.id===S.sheet.id);
     titre = 'Confirmer la réservation'; corps = feuilleConfirmer(c); }
   return `<div class="sheet-bg" data-act="fermer-bg"><div class="sheet">
@@ -2350,6 +2406,9 @@ document.addEventListener('click', async (e) => {
     case 'planning-vue': S.planningVue = el.dataset.v; render(); break;
     case 'cat-video': S.catVideo = el.dataset.v; render(); break;
     case 'cote-biblio': S.coteBiblio = el.dataset.v; render(); break;
+    case 'media-edit': S.sheet = { type:'media-edit', mtype: el.dataset.type, id: el.dataset.id }; render(); break;
+    case 'media-alerte': S.sheet = { type:'media-alerte', mtype: el.dataset.type, id: el.dataset.id }; render(); break;
+
     case 'suppr-doc': {
       if (!confirm('Retirer ce document ?')) break;
       await agir(async()=>{
@@ -2785,6 +2844,11 @@ document.addEventListener('change', async (e) => {
   });
 });
 document.addEventListener('change', (e) => {
+  if (e.target.id !== 'e-dure') return;
+  const champ = document.querySelector('[data-efin]');
+  if (champ) champ.hidden = e.target.value === 'jamais';
+});
+document.addEventListener('change', (e) => {
   if (e.target.id !== 'v-prev') return;
   const champ = document.querySelector('[data-vmsg]');
   if (champ) champ.hidden = !e.target.checked;
@@ -2989,6 +3053,37 @@ document.addEventListener('submit', async (e) => {
     });
     if (error) throw error;
     await chargerDocs(); flash('ok','Document ajouté à la bibliothèque.');
+  });
+
+  if (f.id === 'fmedia') return agir(async()=>{
+    const doc = f.dataset.type === 'doc';
+    const lien = (d.lien||'').trim();
+    if (!/^https?:\/\//i.test(lien)) throw new Error('Le lien doit commencer par https://');
+    const maj = { titre: (d.titre||'').trim() || 'Sans titre', lien, note: (d.note||'').trim(),
+      categorie: d.categorie === 'mobilite' ? 'mobilite' : 'cours' };
+    if (!doc){
+      if (d.duree === 'jamais') maj.expire_le = null;
+      else {
+        if (!d.expire) throw new Error('Choisis la date d’effacement, ou « elle reste en ligne ».');
+        const fin = new Date(d.expire);
+        if (!(fin > new Date())) throw new Error('La date d’effacement doit être dans le futur.');
+        maj.expire_le = fin.toISOString();
+      }
+    }
+    const { error } = await sb.from(doc ? 'documents' : 'videos').update(maj).eq('id', f.dataset.id);
+    if (error) throw error;
+    await (doc ? chargerDocs() : chargerVideos());
+    S.sheet = null; flash('ok','Modifications enregistrées.');
+  });
+
+  if (f.id === 'falerte') return agir(async()=>{
+    const doc = f.dataset.type === 'doc';
+    const r = await rpc(doc ? 'admin_notifier_document' : 'admin_notifier_video',
+      doc ? { p_doc: f.dataset.id, p_message: (d.message||'').trim() || null }
+          : { p_video: f.dataset.id, p_message: (d.message||'').trim() || null });
+    const n = (r && r.envoyes) || 0;
+    S.sheet = null;
+    flash(n ? 'ok' : 'err', n ? `${n} adhérente${n>1?'s':''} prévenue${n>1?'s':''}.` : 'Aucune adhérente à prévenir pour cette rubrique.');
   });
 
   if (f.id === 'fannonce') return agir(async()=>{
