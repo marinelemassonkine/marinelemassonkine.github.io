@@ -365,7 +365,7 @@ const SUPABASE_KEY = 'sb_publishable_bS-fbBuW7ru_xDywDv_A2A_xHGRGUeN';
 const sb = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 /* ------------------------------------------------------------------ état */
-const VERSION = '2026-09-30-r69';
+const VERSION = '2026-10-21-r70';
 const aujourdhui = new Date();
 const S = {
   session:null, profil:null, params:null,
@@ -714,7 +714,7 @@ function icoDoc(lien){
 }
 async function chargerVideos(){
   const { data } = await sb.from('videos').select('*').order('cree_le', { ascending:false });
-  S.videos = (data || []).filter(v => new Date(v.expire_le) > new Date());
+  S.videos = (data || []).filter(v => !v.expire_le || new Date(v.expire_le) > new Date());
 }
 async function chargerAnnonces(){
   const { data } = await sb.from('annonces').select('*').order('cree_le', { ascending:false });
@@ -1834,7 +1834,7 @@ function vueVideos(){
       ${liste.length ? `<div class="stack">${liste.map(v=>`
         <div class="card stack">
           <div><div style="font-weight:700">${esc(v.titre)}</div>
-            <div class="faint">Disponible jusqu’au ${esc(fJusqua(new Date(v.expire_le)))}</div></div>
+            <div class="faint">${v.expire_le ? `Disponible jusqu’au ${esc(fJusqua(new Date(v.expire_le)))}` : 'Disponible sans limite de temps'}</div></div>
           ${v.note ? `<div style="font-size:14px; line-height:1.45">${esc(v.note)}</div>` : ''}
           ${lecteurVideo(v.lien)}
         </div>`).join('')}</div>`
@@ -1851,7 +1851,7 @@ function vueAdminVideos(){
         <div class="person">
           <div class="avatar" style="font-size:13px">▶</div>
           <div class="grow"><div class="name">${esc(v.titre)}</div>
-            <div class="faint">S’efface le ${esc(fJusqua(new Date(v.expire_le)))}</div></div>
+            <div class="faint">${v.expire_le ? `S’efface le ${esc(fJusqua(new Date(v.expire_le)))}` : 'Reste en ligne (pas d’effacement)'}</div></div>
           <button class="btn dangerish xs" data-act="suppr-video" data-id="${v.id}">Retirer</button>
         </div>`).join('') : '<div class="faint">Aucune vidéo dans cette rubrique.</div>'}</div>`).join('')}
 
@@ -1864,12 +1864,17 @@ function vueAdminVideos(){
       <div class="field"><label for="v-titre">Titre</label><input id="v-titre" name="titre" value="Cours du lundi soir" required></div>
       <div class="field"><label for="v-lien">Lien de la vidéo</label>
         <input id="v-lien" name="lien" type="url" inputmode="url" placeholder="https://youtu.be/…" required></div>
-      <div class="field"><label for="v-fin">S’efface automatiquement le</label>
-        <input id="v-fin" name="expire" type="datetime-local" value="${valeurLocale(prochainDimanche20h())}" required></div>
+      <div class="field"><label for="v-dure">Combien de temps elle reste en ligne</label>
+        <select id="v-dure" name="duree" data-act-change="v-dure">
+          <option value="date">⏳ Elle s’efface à une date précise</option>
+          <option value="jamais">♾️ Elle reste en ligne jusqu’à ce que je la retire</option>
+        </select></div>
+      <div class="field" data-vfin><label for="v-fin">S’efface automatiquement le</label>
+        <input id="v-fin" name="expire" type="datetime-local" value="${valeurLocale(prochainDimanche20h())}"></div>
       <div class="field"><label for="v-note">Petit mot (facultatif)</label>
         <textarea id="v-note" name="note" placeholder="Ex. : pensez à prendre un tapis et une petite balle"></textarea></div>
       <button class="btn full" type="submit" ${S.busy?'disabled':''}>Mettre la vidéo en ligne</button>
-      <div class="faint" style="margin-top:10px">Mets ta vidéo sur YouTube en « Non répertoriée » (ou sur Google Drive en « Tous les utilisateurs disposant du lien »), puis colle le lien ici. Seules les adhérentes avec l’option vidéo la verront, jusqu’à la date choisie.</div>
+      <div class="faint" style="margin-top:10px">Mets ta vidéo sur YouTube en « Non répertoriée » (ou sur Google Drive en « Tous les utilisateurs disposant du lien »), puis colle le lien ici. Seules les adhérentes qui ont accès à cette rubrique la verront. Tu peux la retirer à la main à tout moment, même si tu n’as pas mis de date.</div>
     </form>
 
     ${['cours','mobilite'].map(k => `
@@ -2773,6 +2778,15 @@ document.addEventListener('change', async (e) => {
   });
 });
 document.addEventListener('change', (e) => {
+  if (e.target.id !== 'v-dure') return;
+  const champ = document.querySelector('[data-vfin]');
+  const inp = document.getElementById('v-fin');
+  if (!champ) return;
+  const avecDate = e.target.value !== 'jamais';
+  champ.hidden = !avecDate;
+  if (inp) inp.required = avecDate;
+});
+document.addEventListener('change', (e) => {
   if (e.target.id !== 'rp-cible') return;
   const a = document.getElementById('rp-aide');
   if (a) a.textContent = AIDE_CIBLE[e.target.value] || '';
@@ -2917,14 +2931,21 @@ document.addEventListener('submit', async (e) => {
   if (f.id === 'fvideo') return agir(async()=>{
     const lien = d.lien.trim();
     if (!/^https?:\/\//i.test(lien)) throw new Error('Colle un lien qui commence par https://');
-    const fin = new Date(d.expire);
-    if (!(fin > new Date())) throw new Error('La date d’effacement doit être dans le futur.');
+    const sansFin = d.duree === 'jamais';
+    let fin = null;
+    if (!sansFin){
+      if (!d.expire) throw new Error('Choisis la date d’effacement, ou « elle reste en ligne ».');
+      fin = new Date(d.expire);
+      if (!(fin > new Date())) throw new Error('La date d’effacement doit être dans le futur.');
+    }
     const { error } = await sb.from('videos').insert({
-      titre: d.titre.trim() || 'Cours du lundi soir', lien, note: (d.note||'').trim(), expire_le: fin.toISOString(),
+      titre: d.titre.trim() || 'Cours du lundi soir', lien, note: (d.note||'').trim(),
+      expire_le: fin ? fin.toISOString() : null,
       categorie: d.categorie === 'mobilite' ? 'mobilite' : 'cours'
     });
     if (error) throw error;
-    await chargerVideos(); flash('ok', `Vidéo en ligne jusqu’au ${fJusqua(fin)}.`);
+    await chargerVideos();
+    flash('ok', fin ? `Vidéo en ligne jusqu’au ${fJusqua(fin)}.` : 'Vidéo en ligne. Elle y restera jusqu’à ce que tu la retires.');
   });
 
   if (f.id === 'fdoc') return agir(async()=>{
